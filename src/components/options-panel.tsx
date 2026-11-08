@@ -29,10 +29,13 @@ export function OptionsPanel({
   return (
     <section className="panel" id="contract" aria-labelledby="contract-title">
       <h2 id="contract-title">Exact contract</h2>
-      <p className="meta mono">
-        {symbol} · one capture for this session. Not an order and not a chain.
+      <p className="result-line">
+        Spread {math.spreadDollars === null ? <span className="unknown-word">Unknown</span> : `${formatPrice(math.spreadDollars)}`}
+        {" · "}Exposure {math.fullPremiumExposure === null ? <span className="unknown-word">Unknown</span> : formatDollars(math.fullPremiumExposure)}
+        {" · "}Stop {math.stopRisk === null ? <span className="unknown-word">Not established</span> : showEntered(capture.estimatedStopRisk)}
+        {" · "}Fees {math.fee === null ? <span className="unknown-word">Unknown</span> : showEntered(capture.userEnteredFee)}
       </p>
-      <p>Bid, ask, debit, exposure, stop, and the plan are separate. Blank means unknown, not zero.</p>
+      <p className="meta mono">{symbol} · this session · not an order</p>
       {math.errors.length ? (
         <div className="errors">
           {math.errors.map((error) => (
@@ -123,8 +126,45 @@ export function OptionsPanel({
       >
         Set multiplier to 100. I confirm this contract uses 100.
       </Button>
+      <dl className="math">
+        <div>
+          <dt>Spread</dt>
+          <dd>{math.spreadDollars === null ? <span className="unknown-word">Unknown</span> : `${formatPrice(math.spreadDollars)} dollars`}</dd>
+          <dd className="formula">{math.formulaExpression}</dd>
+        </div>
+        <div>
+          <dt>Premium debit</dt>
+          <dd>{showEntered(capture.debit)} <span className="meta">per unit, not the spread</span></dd>
+        </div>
+        <div>
+          <dt>Full premium exposure</dt>
+          <dd>{math.fullPremiumExposure === null ? <span className="unknown-word">Unknown</span> : `${formatDollars(math.fullPremiumExposure)}`}</dd>
+          <dd className="formula">Debit × multiplier × contracts. Fees excluded. Premium invested, not a stop.</dd>
+        </div>
+        <div>
+          <dt>Estimated stop risk</dt>
+          <dd>{math.stopRisk === null ? <span className="unknown-word">Not established</span> : `${showEntered(capture.estimatedStopRisk)}. Not a broker stop.`}</dd>
+        </div>
+        <div>
+          <dt>Contract plan</dt>
+          <dd className="formula">{math.targetExpression}</dd>
+          <dd className="hint">Plan for the contract. Not an account return, not a quote, and not an analyst stock target.</dd>
+        </div>
+      </dl>
+      <p className="meta">
+        {math.fee === null ? <span className="unknown-word">Fees unknown</span> : "A fee was typed. It is not in the exposure."}
+        {" · "}
+        <span className="unknown-word">Tick size unknown</span>
+        {" · Source "}
+        {capture.sourceName.trim() ? capture.sourceName : <span className="unknown-word">Unknown</span>}
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={onAttach}>
+        Attach snapshot. Review and observation stay as you set them.
+      </Button>
+      <details>
+        <summary>Provenance, fees, and formula</summary>
       <div className="grid-2">
-        <Field label="Source name" hint="Where you read the bid and ask.">
+      <Field label="Source name" hint="Where you read the bid and ask.">
           {(id, describedBy) => (
             <Input id={id} aria-describedby={describedBy} value={capture.sourceName} placeholder="Unknown" onChange={(event) => set({ sourceName: event.target.value })} />
           )}
@@ -196,58 +236,7 @@ export function OptionsPanel({
           </label>
         ))}
       </fieldset>
-      <dl className="math">
-        <div>
-          <dt>Spread, dollars</dt>
-          <dd>{math.spreadDollars === null ? <span className="unknown-word">Unknown</span> : `${formatPrice(math.spreadDollars)} dollars (calculated)`}</dd>
-          <dd className="formula">{math.formulaLabel}. {math.formulaExpression}</dd>
-        </div>
-        <div>
-          <dt>Premium debit</dt>
-          <dd>{showEntered(capture.debit)}</dd>
-        </div>
-        <div>
-          <dt>Full premium exposure</dt>
-          <dd>{math.fullPremiumExposure === null ? <span className="unknown-word">Unknown</span> : `${formatDollars(math.fullPremiumExposure)} (calculated)`}</dd>
-          <dd className="formula">Debit × multiplier × contracts. Fees are not included. This is premium invested, not a stop.</dd>
-        </div>
-        <div>
-          <dt>Estimated stop risk</dt>
-          <dd>
-            {math.stopRisk === null ? (
-              <span className="unknown-word">Not established</span>
-            ) : (
-              `${showEntered(capture.estimatedStopRisk)}. User-entered estimate. Not a broker stop.`
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Plan target price</dt>
-          <dd className="formula">{math.targetExpression}</dd>
-          <dd className="hint">Contract return on the debit you entered. Not an account return and not a quote.</dd>
-        </div>
-        <div>
-          <dt>Fees and ticks</dt>
-          <dd>{math.fee === null ? <span className="unknown-word">Fees unknown</span> : `${showEntered(capture.userEnteredFee)}. Not included in exposure.`}</dd>
-          <dd>
-            <span className="unknown-word">Tick size unknown</span>
-          </dd>
-        </div>
-      </dl>
-      {math.recordGaps.length ? (
-        <p>
-          Still missing for the contract record: {math.recordGaps.join(", ")}. The checklist status stays where you set it.
-        </p>
-      ) : (
-        <p>Root, expiry date, bid, ask, and source time are present. The checklist status still changes only when you set it.</p>
-      )}
-      <ul>
-        {math.unknowns.map((line) => (
-          <li key={line}>
-            <span className="unknown-word">{line}</span>
-          </li>
-        ))}
-      </ul>
+      {math.recordGaps.length ? <p className="meta">Still blank: {math.recordGaps.join(", ")}.</p> : <p className="meta">Root, expiry date, bid, ask, and source time are filled in.</p>}
       {showDistinctions ? (
         <div className="fact">
           {math.distinctions.map((line) => (
@@ -256,9 +245,7 @@ export function OptionsPanel({
         </div>
       ) : null}
       {capture.updatedAt ? <p className="meta">Capture updated {formatInstantEt(capture.updatedAt)}.</p> : null}
-      <Button type="button" variant="outline" onClick={onAttach}>
-        Attach snapshot to option evidence. This does not change the status.
-      </Button>
+      </details>
     </section>
   );
 }

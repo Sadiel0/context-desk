@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { setChecklistStatus } from "@/domain/actions";
+import { setObservation } from "@/domain/actions";
 import { initialWorkspace } from "@/domain/state";
 import { loadWorkspace, saveWorkspace, STORAGE_KEY, type KeyValueStore } from "@/storage/local-workspace";
 
@@ -20,11 +20,11 @@ describe("local workspace", () => {
   it("round-trips a session and strips a javascript link without writing on corrupt JSON", () => {
     const store = new MemoryStore();
     let state = initialWorkspace();
-    state = setChecklistStatus(state, {
+    state = setObservation(state, {
       symbol: "META",
       sessionDate: "2026-11-08",
       itemId: "gap",
-      status: "not_applicable",
+      observation: "not_applicable",
       at: "2026-11-08T15:00:00.000Z",
     }).state;
     state = {
@@ -61,7 +61,7 @@ describe("local workspace", () => {
         ...state.checklists,
         "META|2026-11-08": {
           ...state.checklists["META|2026-11-08"],
-          statuses: { ...state.checklists["META|2026-11-08"].statuses, bollinger: "pwned" as never },
+          observations: { ...state.checklists["META|2026-11-08"].observations, bollinger: "pwned" as never },
           evidence: [
             {
               id: "e1",
@@ -71,6 +71,11 @@ describe("local workspace", () => {
               recordedAt: "2026-11-08T15:00:00.000Z",
               sourceUrl: "javascript:alert(1)",
               sourceLabel: "Fed",
+              publishedAt: null,
+              eventAt: null,
+              eventDate: null,
+              retrievedAt: null,
+              scope: "user",
             },
           ],
         },
@@ -80,8 +85,9 @@ describe("local workspace", () => {
     const loaded = loadWorkspace(store);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
-    expect(loaded.state.checklists["META|2026-11-08"].statuses.gap).toBe("not_applicable");
-    expect(loaded.state.checklists["META|2026-11-08"].statuses.bollinger).toBe("unknown");
+    expect(loaded.state.checklists["META|2026-11-08"].observations.gap).toBe("not_applicable");
+    expect(loaded.state.checklists["META|2026-11-08"].observations.bollinger).toBe("unknown");
+    expect(loaded.state.checklists["META|2026-11-08"].reviews.gap).toBe("unreviewed");
     expect(loaded.state.checklists["TSLA|2026-11-08"]).toBeUndefined();
     expect(loaded.state.news[0].url).toBeNull();
     expect(loaded.state.news[0].headline).toContain("<script>");
@@ -98,6 +104,29 @@ describe("local workspace", () => {
     foreign.setItem(STORAGE_KEY, JSON.stringify({ version: 2, news: [], earnings: [], checklists: {}, fundamentals: {}, options: {} }));
     expect(loadWorkspace(foreign).ok).toBe(false);
     expect(foreign.getItem(STORAGE_KEY)).toContain('"version":2');
+
+    const legacy = new MemoryStore();
+    legacy.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      news: [],
+      earnings: [],
+      fundamentals: {},
+      options: {},
+      selectedSymbol: "TSLA",
+      checklists: {
+        "TSLA|2026-11-08": {
+          statuses: { fed_earnings: "confirmed", bollinger: "confirmed" },
+          evidence: [],
+        },
+      },
+    }));
+    const migrated = loadWorkspace(legacy);
+    expect(migrated.ok).toBe(true);
+    if (!migrated.ok) return;
+    expect(migrated.state.checklists["TSLA|2026-11-08"].reviews.fed_earnings).toBe("reviewed");
+    expect(migrated.state.checklists["TSLA|2026-11-08"].observations.fed_earnings).toBe("unknown");
+    expect(migrated.state.checklists["TSLA|2026-11-08"].observations.bollinger).toBe("observed");
+    expect(migrated.state.checklists["TSLA|2026-11-09"]).toBeUndefined();
   });
 
   it("starts from an empty workspace with demo off", () => {

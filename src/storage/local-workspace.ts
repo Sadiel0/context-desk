@@ -1,11 +1,17 @@
 import {
   emptyChecklist,
+  emptySetupNote,
   isChecklistItemId,
-  isChecklistStatus,
+  isLegacyChecklistStatus,
+  isObservation,
+  isReviewMark,
+  migrateLegacyStatus,
   type ChecklistItemId,
   type ChecklistSession,
   type Evidence,
   type EvidenceKind,
+  type EvidenceScope,
+  type SetupNote,
 } from "@/domain/checklist";
 import {
   isEarningsTiming,
@@ -198,18 +204,38 @@ function sanitizeChecklist(key: string, raw: unknown): ChecklistSession | null {
   const [symbol, sessionDate] = key.split("|");
   if (!symbol || !sessionDate || !isWatchSymbol(symbol) || !isSessionDate(sessionDate) || !isRecord(raw)) return null;
   const base = emptyChecklist(symbol, sessionDate);
-  const statuses = { ...base.statuses };
-  if (isRecord(raw.statuses)) {
-    for (const id of Object.keys(base.statuses) as ChecklistItemId[]) {
+  const reviews = { ...base.reviews };
+  const observations = { ...base.observations };
+  const hasNewMarks = isRecord(raw.reviews) || isRecord(raw.observations);
+  if (hasNewMarks) {
+    for (const id of Object.keys(base.reviews) as ChecklistItemId[]) {
+      const review = isRecord(raw.reviews) ? raw.reviews[id] : undefined;
+      const observation = isRecord(raw.observations) ? raw.observations[id] : undefined;
+      reviews[id] = typeof review === "string" && isReviewMark(review) ? review : "unreviewed";
+      observations[id] = typeof observation === "string" && isObservation(observation) ? observation : "unknown";
+    }
+  } else if (isRecord(raw.statuses)) {
+    for (const id of Object.keys(base.reviews) as ChecklistItemId[]) {
       const value = raw.statuses[id];
-      statuses[id] = typeof value === "string" && isChecklistStatus(value) ? value : "unknown";
+      const legacy = typeof value === "string" && isLegacyChecklistStatus(value) ? value : "unknown";
+      const migrated = migrateLegacyStatus(id, legacy);
+      reviews[id] = migrated.review;
+      observations[id] = migrated.observation;
     }
   }
-  const statusSetAt: ChecklistSession["statusSetAt"] = {};
-  if (isRecord(raw.statusSetAt)) {
-    for (const id of Object.keys(base.statuses) as ChecklistItemId[]) {
-      const value = asIso(raw.statusSetAt[id]);
-      if (value) statusSetAt[id] = value;
+  const reviewSetAt: ChecklistSession["reviewSetAt"] = {};
+  const observationSetAt: ChecklistSession["observationSetAt"] = {};
+  const stampSource = isRecord(raw.reviewSetAt) ? raw.reviewSetAt : isRecord(raw.statusSetAt) ? raw.statusSetAt : null;
+  if (stampSource) {
+    for (const id of Object.keys(base.reviews) as ChecklistItemId[]) {
+      const value = asIso(stampSource[id]);
+      if (value) reviewSetAt[id] = value;
+    }
+  }
+  if (isRecord(raw.observationSetAt)) {
+    for (const id of Object.keys(base.reviews) as ChecklistItemId[]) {
+      const value = asIso(raw.observationSetAt[id]);
+      if (value) observationSetAt[id] = value;
     }
   }
   const evidence: Evidence[] = [];
@@ -220,7 +246,35 @@ function sanitizeChecklist(key: string, raw: unknown): ChecklistSession | null {
       if (cleaned) evidence.push(cleaned);
     }
   }
-  return { symbol, sessionDate, statuses, statusSetAt, evidence };
+  return {
+    symbol,
+    sessionDate,
+    reviews,
+    observations,
+    reviewSetAt,
+    observationSetAt,
+    setup: sanitizeSetup(raw.setup),
+    evidence,
+  };
+}
+
+function sanitizeSetup(raw: unknown): SetupNote {
+  const empty = emptySetupNote();
+  if (!isRecord(raw)) return empty;
+  const local = typeof raw.observedAtLocal === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw.observedAtLocal)
+    ? raw.observedAtLocal
+    : "";
+  return {
+    lateralOrSqueeze: asText(raw.lateralOrSqueeze, 400),
+    bandsWidening: asText(raw.bandsWidening, 400),
+    directionalExit: asText(raw.directionalExit, 400),
+    candle: asText(raw.candle, 400),
+    nearbyLineOrMa: asText(raw.nearbyLineOrMa, 400),
+    extensionJudgment: asText(raw.extensionJudgment, 400),
+    observedAtLocal: local,
+    observedAt: asIso(raw.observedAt),
+    setupVersion: asText(raw.setupVersion, 80),
+  };
 }
 
 function sanitizeEvidence(raw: unknown): Evidence | null {
@@ -232,6 +286,8 @@ function sanitizeEvidence(raw: unknown): Evidence | null {
   if (!allowed) return null;
   const text = cleanText(raw.text, 2000).trim();
   if (!text) return null;
+  const scope: EvidenceScope = raw.scope === "symbol" || raw.scope === "macro" || raw.scope === "user" ? raw.scope : "user";
+  const eventDate = typeof raw.eventDate === "string" && isSessionDate(raw.eventDate) ? raw.eventDate : null;
   return {
     id: cleanText(raw.id, 80),
     itemId: raw.itemId,
@@ -240,6 +296,11 @@ function sanitizeEvidence(raw: unknown): Evidence | null {
     recordedAt: asIso(raw.recordedAt) ?? new Date(0).toISOString(),
     sourceUrl: asUrl(raw.sourceUrl),
     sourceLabel: asText(raw.sourceLabel, 200).trim() || null,
+    publishedAt: asIso(raw.publishedAt),
+    eventAt: asIso(raw.eventAt),
+    eventDate,
+    retrievedAt: asIso(raw.retrievedAt),
+    scope,
   };
 }
 

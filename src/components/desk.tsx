@@ -6,38 +6,42 @@ import {
   attachCaptureEvidence,
   attachMeetingEvidence,
   attachNewsEvidence,
+  attachPressEvidence,
   removeEarnings,
   resetSession,
+  reviseNews,
   saveNews,
   selectSymbol,
-  setChecklistStatus,
   setDemo,
   setFundamentals,
+  setObservation,
   setOptionCapture,
+  setReview,
   setSessionOverride,
+  setSetupNote,
   setSpreadFormula,
-  reviseNews,
 } from "@/domain/actions";
-import type { ChecklistItemId, ChecklistStatus, Evidence } from "@/domain/checklist";
+import type { ChecklistItemId, Evidence, Observation, ReviewMark, SetupNote } from "@/domain/checklist";
+import { CHECKLIST_ITEMS } from "@/domain/checklist";
+import { nextFomcDate, nextSymbolEvent } from "@/domain/coverage";
 import { DEMO_BANNER, itemsForView } from "@/domain/demo";
 import type { FedPressItem, FomcMeeting } from "@/domain/fed-parse";
-import type { Fundamentals } from "@/domain/fundamentals";
+import { retrievalPhrase } from "@/domain/freshness";
+import { ADVISORY_LIMITS, BOLLINGER_ADAPTATION, TC2000_BOUNDARY } from "@/domain/limits";
 import type { NewsDraft } from "@/domain/news";
-import type { OptionCapture } from "@/domain/options";
-import { SOURCE_ADAPTERS } from "@/domain/sources";
 import { checklistFor, fundamentalsFor, optionFor } from "@/domain/state";
-import { formatSessionLabel, isSessionDate } from "@/domain/time";
+import { describeSession, isSessionDate } from "@/domain/time";
 import { instrumentFor } from "@/domain/watchlist";
 import { CalendarPanel } from "@/components/calendar-panel";
 import { ChecklistRail } from "@/components/checklist-rail";
 import { ContextFeed } from "@/components/context-feed";
 import { FundamentalsPanel } from "@/components/fundamentals-panel";
 import { OptionsPanel } from "@/components/options-panel";
-import { SafeLink } from "@/components/safe-link";
 import { SourcesPanel } from "@/components/sources-panel";
 import { useFed } from "@/components/use-fed";
 import { useWorkspace } from "@/components/use-workspace";
 import { WatchlistBar } from "@/components/watchlist-bar";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -50,13 +54,9 @@ export function Desk() {
   if (!ready || !state || !now || !sessionDate) {
     return (
       <>
-        <a className="skip" href="#checklist">
-          Skip to checklist
-        </a>
-        <Mast sessionDate="" onSession={() => undefined} onReset={null} />
-        <p className="opening" role="status">
-          Opening the workspace saved in this browser…
-        </p>
+        <a className="skip" href="#checklist">Skip to checklist</a>
+        <Mast sessionDate="" nowLabel="" onSession={() => undefined} onReset={null} />
+        <p className="opening" role="status">Opening the workspace saved in this browser…</p>
       </>
     );
   }
@@ -67,19 +67,20 @@ export function Desk() {
   const capture = optionFor(state, symbol, sessionDate);
   const fundamentals = fundamentalsFor(state, symbol)!;
   const library = itemsForView(state.news, state.demo);
-  const links = SOURCE_ADAPTERS.flatMap((adapter) => adapter.links(instrument));
   const workspaceState = state;
+  const clock = describeSession(now, sessionDate, state.sessionDateOverride !== null);
+  const earnings = state.earnings.filter((event) => event.symbol === symbol);
+  const symbolEvent = nextSymbolEvent(state.earnings, symbol, sessionDate);
+  const fomc = nextFomcDate(fed.result?.calendar.data ?? [], sessionDate, fed.failed ?? fed.result?.calendar.error ?? (fed.result ? null : "Not retrieved yet."));
 
-  function applyStatus(itemId: ChecklistItemId, status: ChecklistStatus) {
+  function applyReview(itemId: ChecklistItemId, review: ReviewMark) {
+    workspace.apply(setReview(workspaceState, { symbol, sessionDate: sessionDate!, itemId, review, at: new Date().toISOString() }), "Review saved. Observation was not changed.");
+  }
+
+  function applyObservation(itemId: ChecklistItemId, observation: Observation) {
     workspace.apply(
-      setChecklistStatus(workspaceState, {
-        symbol,
-        sessionDate: sessionDate!,
-        itemId,
-        status,
-        at: new Date().toISOString(),
-      }),
-      "Status saved. It does not submit an order.",
+      setObservation(workspaceState, { symbol, sessionDate: sessionDate!, itemId, observation, at: new Date().toISOString() }),
+      "Observation saved. It is not a permission to trade.",
     );
   }
 
@@ -90,8 +91,12 @@ export function Desk() {
         sessionDate: sessionDate!,
         evidence: { ...evidence, id: crypto.randomUUID(), recordedAt: new Date().toISOString() },
       }),
-      "Evidence saved. The status was not changed.",
+      "Evidence saved. Review and observation were not changed.",
     );
+  }
+
+  function applySetup(note: SetupNote) {
+    workspace.apply(setSetupNote(workspaceState, { symbol, sessionDate: sessionDate!, note }));
   }
 
   function commitNews(draft: NewsDraft, mode: "primary" | "duplicate" | "correction" | "revise") {
@@ -99,36 +104,18 @@ export function Desk() {
     return workspace.apply(saveNews(workspaceState, draft, mode), "Item saved in the library.");
   }
 
-  function savePress(item: FedPressItem) {
+  function attachPress(item: FedPressItem) {
+    if (!fed.result) return;
     workspace.apply(
-      saveNews(
-        workspaceState,
-        {
-          id: crypto.randomUUID(),
-          sourceId: "fed",
-          sourceLabel: "Federal Reserve monetary-policy feed",
-          url: item.url,
-          author: "",
-          headline: item.title,
-          quote: "",
-          publishedAt: item.publishedAt,
-          eventAt: null,
-          symbols: [],
-          relevance: "inferred",
-          relevanceNote:
-            "Monetary-policy headline. Any link to a watchlist name is inferred through rates or index products, not stated by the feed.",
-          extractedFact: "",
-          interpretation: null,
-          rumor: false,
-          uncertainAttribution: false,
-          x: null,
-          correctionOfId: null,
-          duplicateOfId: null,
-          ingestedAt: new Date().toISOString(),
-        },
-        "primary",
-      ),
-      "Federal Reserve headline saved. It is inferred context, not a company filing.",
+      attachPressEvidence(workspaceState, {
+        symbol,
+        sessionDate: sessionDate!,
+        item,
+        evidenceId: crypto.randomUUID(),
+        at: new Date().toISOString(),
+        retrievedAt: fed.result.retrievedAt,
+      }),
+      "Federal Reserve title attached as macro evidence. Review and observation were not changed.",
     );
   }
 
@@ -144,37 +131,45 @@ export function Desk() {
         retrievedAt: fed.result.retrievedAt,
         lastUpdate: fed.result.calendar.lastUpdate,
       }),
-      "Meeting attached as a sourced fact. The checklist status was not changed.",
+      "Meeting attached as macro evidence. Review and observation were not changed.",
     );
-  }
-
-  function saveCapture(next: OptionCapture) {
-    workspace.apply(setOptionCapture(workspaceState, symbol, sessionDate!, next, new Date().toISOString()));
-  }
-
-  function saveFundamentals(next: Fundamentals) {
-    workspace.apply(setFundamentals(workspaceState, symbol, next));
   }
 
   return (
     <>
-      <a className="skip" href="#checklist">
-        Skip to checklist
-      </a>
-      <a className="skip" href="#feed">
-        Skip to context feed
-      </a>
-      <a className="skip" href="#contract">
-        Skip to option capture
-      </a>
+      <a className="skip" href="#checklist">Skip to checklist</a>
+      <a className="skip" href="#feed">Skip to catalysts</a>
+      <a className="skip" href="#contract">Skip to contract</a>
       <Mast
         sessionDate={sessionDate}
+        nowLabel={clock.nowLabel}
         onSession={(value) => {
           if (value === "") workspace.apply(setSessionOverride(state, null), "Using today’s Eastern date.");
           else if (isSessionDate(value)) workspace.apply(setSessionOverride(state, value));
           else workspace.setNotice("That session date is not a real calendar date.");
         }}
         onReset={() => workspace.apply(resetSession(state, symbol, sessionDate), "Session reset. News and fundamentals stayed.")}
+        help={<HelpCopy />}
+        sources={
+          <>
+            <SourcesPanel instrument={instrument} demo={state.demo} onDemo={(demo) => workspace.apply(setDemo(state, demo))} />
+            <CalendarPanel
+              symbol={symbol}
+              sessionDate={sessionDate}
+              result={fed.result}
+              loading={fed.loading}
+              failed={fed.failed}
+              onRefresh={fed.refresh}
+              earnings={earnings}
+              onAttach={attachMeeting}
+              onAddEarnings={(event) =>
+                workspace.apply(addEarnings(state, { ...event, id: crypto.randomUUID(), recordedAt: new Date().toISOString() }), "Earnings note saved.")
+              }
+              onRemoveEarnings={(id) => workspace.apply(removeEarnings(state, id), "Earnings note removed.")}
+            />
+            <FundamentalsPanel key={symbol} symbol={symbol} value={fundamentals} onChange={(next) => workspace.apply(setFundamentals(state, symbol, next))} />
+          </>
+        }
       />
       {state.demo ? (
         <div className="demo-banner" role="status">
@@ -185,108 +180,97 @@ export function Desk() {
         <div className="storage-banner">
           <div className="band">
             <p>{workspace.storageMessage}</p>
-            <Button type="button" variant="clay" onClick={workspace.replaceStorage}>
-              Replace it with an empty workspace
-            </Button>
-            <Button type="button" variant="outline" onClick={workspace.keepWithoutSaving}>
-              Continue without saving
-            </Button>
+            <Button type="button" variant="clay" onClick={workspace.replaceStorage}>Replace it with an empty workspace</Button>
+            <Button type="button" variant="outline" onClick={workspace.keepWithoutSaving}>Continue without saving</Button>
           </div>
         </div>
       ) : null}
       <div className="band">
         <WatchlistBar selected={symbol} onSelect={(next) => workspace.apply(selectSymbol(state, next))} />
-        <div className="ticker-row">
+        <div className="symbol-strip">
           <div>
-            <p className="eyebrow">{instrument.kind === "index" ? "Index, occasional" : instrument.kind}</p>
+            <p className="eyebrow">{instrument.kind}</p>
             <h2>{symbol}</h2>
-            <p>{instrument.name}</p>
+            <p className="meta">{instrument.name}</p>
           </div>
-          <p className="meta">{formatSessionLabel(sessionDate)}</p>
+          <dl className="facts">
+            <dt>Session</dt>
+            <dd>
+              {clock.sessionLabel}
+              {clock.weekend ? " · Weekend" : ""}
+              {clock.matchesEasternToday ? " · Today in Eastern time" : " · Manual date"}
+            </dd>
+            <dt>Coverage</dt>
+            <dd><span className="unknown-word">Unknown</span></dd>
+            <dt>Next {symbol} event</dt>
+            <dd>
+              {symbolEvent.state === "unknown" ? (
+                <span className="unknown-word">Unknown</span>
+              ) : (
+                <>
+                  {symbolEvent.date} · {symbolEvent.timingLabel}
+                  {symbolEvent.clockKnown ? ` · clock note: ${symbolEvent.clockNote}` : " · clock Unknown"}
+                </>
+              )}
+            </dd>
+            <dt>Next FOMC date</dt>
+            <dd>
+              {fomc.state === "unknown" ? (
+                <><span className="unknown-word">Unknown</span> <span className="meta">{fomc.reason}</span></>
+              ) : (
+                <>
+                  {fomc.label}
+                  {fomc.meeting.sep ? " · SEP" : ""}
+                  {" · date only · statement clock "}
+                  <span className="unknown-word">Unknown</span>
+                  {fed.result ? ` · ${retrievalPhrase(fed.result.retrievedAt, now)}` : ""}
+                  {fed.result?.calendar.lastUpdate ? ` · page text ${fed.result.calendar.lastUpdate}` : ""}
+                  {" · not a "}{symbol}{" stream"}
+                </>
+              )}
+            </dd>
+          </dl>
         </div>
-        <p className="hint">Price, bands, moving averages, and candles stay in TC2000.</p>
-        <div className="launcher-row" aria-label="Source launchers">
-          {links.map((link) => (
-            <SafeLink key={link.url} href={link.url}>
-              {link.label}
-              {link.verifiedInBuild ? "" : " (unverified)"}
-            </SafeLink>
-          ))}
-        </div>
-        <p className="notice" role="status">
-          {workspace.notice ??
-            (workspace.holdWrites
-              ? "Changes in this tab are not being written to the saved workspace."
-              : "Saved in this browser for each symbol and Eastern session.")}
-        </p>
+        <p className="notice" role="status">{workspace.notice ?? ""}</p>
       </div>
       <div className="desk">
-        <ChecklistRail checklist={checklist} onStatus={applyStatus} onEvidence={applyEvidence} />
+        <ChecklistRail
+          checklist={checklist}
+          now={now}
+          onReview={applyReview}
+          onObservation={applyObservation}
+          onEvidence={applyEvidence}
+          onSetup={applySetup}
+          setupError={workspace.notice && /not guessed|leave the field blank/.test(workspace.notice) ? workspace.notice : null}
+        />
         <ContextFeed
           symbol={symbol}
           items={library}
           demo={state.demo}
           now={now}
           fed={fed.result}
-          onCommit={(draft, mode) => commitNews(draft, mode)}
+          onCommit={commitNews}
           onAttach={(item) =>
             workspace.apply(
-              attachNewsEvidence(state, {
-                symbol,
-                sessionDate,
-                itemId: item.id,
-                evidenceId: crypto.randomUUID(),
-                at: new Date().toISOString(),
-              }),
-              "Headline attached as evidence. The status was not changed.",
+              attachNewsEvidence(state, { symbol, sessionDate, itemId: item.id, evidenceId: crypto.randomUUID(), at: new Date().toISOString() }),
+              "Headline attached. Review and observation were not changed.",
             )
           }
-          onSavePress={(item) => savePress(item)}
+          onAttachPress={attachPress}
         />
-        <div className="stack">
-          <CalendarPanel
-            symbol={symbol}
-            sessionDate={sessionDate}
-            result={fed.result}
-            loading={fed.loading}
-            failed={fed.failed}
-            onRefresh={fed.refresh}
-            earnings={state.earnings.filter((event) => event.symbol === symbol)}
-            onAttach={(meeting) => attachMeeting(meeting)}
-            onAddEarnings={(event) =>
-              workspace.apply(
-                addEarnings(state, { ...event, id: crypto.randomUUID(), recordedAt: new Date().toISOString() }),
-                "Earnings note saved.",
-              )
-            }
-            onRemoveEarnings={(id) => workspace.apply(removeEarnings(state, id), "Earnings note removed.")}
-          />
-          <OptionsPanel
-            symbol={symbol}
-            capture={capture}
-            formula={state.spreadFormula}
-            onCapture={(next) => saveCapture(next)}
-            onFormula={(formula) => workspace.apply(setSpreadFormula(state, formula), "Spread formula saved.")}
-            onAttach={() =>
-              workspace.apply(
-                attachCaptureEvidence(state, {
-                  symbol,
-                  sessionDate,
-                  evidenceId: crypto.randomUUID(),
-                  at: new Date().toISOString(),
-                }),
-                "Contract snapshot attached. The status was not changed.",
-              )
-            }
-          />
-          <FundamentalsPanel
-            key={symbol}
-            symbol={symbol}
-            value={fundamentals}
-            onChange={(next) => saveFundamentals(next)}
-          />
-          <SourcesPanel instrument={instrument} demo={state.demo} onDemo={(demo) => workspace.apply(setDemo(state, demo))} />
-        </div>
+        <OptionsPanel
+          symbol={symbol}
+          capture={capture}
+          formula={state.spreadFormula}
+          onCapture={(next) => workspace.apply(setOptionCapture(state, symbol, sessionDate, next, new Date().toISOString()))}
+          onFormula={(formula) => workspace.apply(setSpreadFormula(state, formula), "Spread formula saved.")}
+          onAttach={() =>
+            workspace.apply(
+              attachCaptureEvidence(state, { symbol, sessionDate, evidenceId: crypto.randomUUID(), at: new Date().toISOString() }),
+              "Contract snapshot attached. Review and observation were not changed.",
+            )
+          }
+        />
       </div>
     </>
   );
@@ -294,12 +278,18 @@ export function Desk() {
 
 function Mast({
   sessionDate,
+  nowLabel,
   onSession,
   onReset,
+  help,
+  sources,
 }: {
   sessionDate: string;
+  nowLabel: string;
   onSession: (value: string) => void;
   onReset: (() => void) | null;
+  help?: ReactNode;
+  sources?: ReactNode;
 }) {
   return (
     <header className="mast">
@@ -308,25 +298,68 @@ function Mast({
           <div>
             <p className="eyebrow">Unpublished local draft</p>
             <h1>Context desk</h1>
+            {nowLabel ? <p className="now-line">Eastern now {nowLabel}</p> : null}
           </div>
           {sessionDate ? (
             <div className="session-controls">
               <label>
-                Eastern session date
+                Session date
                 <Input type="date" value={sessionDate} onChange={(event) => onSession(event.target.value)} />
               </label>
-              <Button type="button" variant="outline" onClick={() => onSession("")}>
-                Use today (ET)
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onSession("")}>Today (ET)</Button>
               {onReset ? <ResetControl sessionDate={sessionDate} onReset={onReset} /> : null}
+              {help ? <Drawer label="Help" title="How the marks work">{help}</Drawer> : null}
+              {sources ? <Drawer label="Sources" title="Sources, calendar, and company notes" wide>{sources}</Drawer> : null}
             </div>
           ) : null}
         </div>
-        <p className="mast-note">
-          Orders stay on the Thinkorswim phone. Bands, averages, and candles stay in TC2000. This desk does not quote the market and does not send orders.
-        </p>
       </div>
     </header>
+  );
+}
+
+function Drawer({ label, title, wide, children }: { label: string; title: string; wide?: boolean; children: ReactNode }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline">{label}</Button>
+      </DialogTrigger>
+      <DialogContent className={wide ? "dialog-wide" : undefined}>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription className="sr-only">{title}</DialogDescription>
+        <div className="drawer-body">{children}</div>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">Close</Button>
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function HelpCopy() {
+  return (
+    <>
+      <p>
+        Reviewed means you looked. Observed means you saw the condition. Neither one is a permission to trade, and there is no combined score.
+      </p>
+      <p>{TC2000_BOUNDARY}</p>
+      <p>{BOLLINGER_ADAPTATION}</p>
+      <p>The six Spanish names are the same six requirements. This draft’s source list was written in English.</p>
+      <ul>
+        {CHECKLIST_ITEMS.map((item) => (
+          <li key={item.id}>
+            <span lang="es">{item.titleEs}</span> / {item.titleEn}. {item.detail}
+          </li>
+        ))}
+      </ul>
+      <ul>
+        {ADVISORY_LIMITS.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p>A successful fetch is not a fresh item. Publication age and the last retrieval are separate. A date-only Fed row is not a statement clock time. Missing ticker coverage stays Unknown.</p>
+      <p>Orders stay on the Thinkorswim phone.</p>
+    </>
   );
 }
 
@@ -334,25 +367,19 @@ function ResetControl({ sessionDate, onReset }: { sessionDate: string; onReset: 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" variant="clay">
-          Reset session
-        </Button>
+        <Button type="button" variant="clay">Reset</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Reset this session?</DialogTitle>
         <DialogDescription id="reset-desc">
-          Clears checklist statuses, evidence, and the option capture for this symbol on {sessionDate}. The news library, fundamentals, and earnings notes stay.
+          Clears review, observation, evidence, the setup note, and the option capture for this symbol on {sessionDate}. The news library, fundamentals, and earnings notes stay. A later date does not inherit these marks.
         </DialogDescription>
         <div className="inline-actions">
           <DialogClose asChild>
-            <Button type="button" variant="clay" onClick={onReset}>
-              Reset session
-            </Button>
+            <Button type="button" variant="clay" onClick={onReset}>Reset session</Button>
           </DialogClose>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
         </div>
       </DialogContent>

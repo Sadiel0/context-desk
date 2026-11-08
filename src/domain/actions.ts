@@ -1,5 +1,17 @@
-import { isChecklistItemId, isChecklistStatus, withEvidence, withStatus, type Evidence } from "@/domain/checklist";
-import { describeMeeting, type FomcMeeting } from "@/domain/fed-parse";
+import {
+  isChecklistItemId,
+  isObservation,
+  isReviewMark,
+  withEvidence,
+  withObservation,
+  withReview,
+  withSetup,
+  type Evidence,
+  type Observation,
+  type ReviewMark,
+  type SetupNote,
+} from "@/domain/checklist";
+import { describeMeeting, type FedPressItem, type FomcMeeting } from "@/domain/fed-parse";
 import {
   isEarningsTiming,
   type EarningsEvent,
@@ -15,7 +27,7 @@ import {
   sessionKey,
   type WorkspaceState,
 } from "@/domain/state";
-import { isSessionDate } from "@/domain/time";
+import { easternLocalToIso, isSessionDate, zonedErrorMessage } from "@/domain/time";
 import { normalizeUrl } from "@/domain/urls";
 import { isWatchSymbol } from "@/domain/watchlist";
 import { FED_CALENDAR_URL } from "@/domain/sources";
@@ -54,18 +66,57 @@ export function setDemo(state: WorkspaceState, demo: boolean): ActionResult {
   return ok({ ...state, demo });
 }
 
-export function setChecklistStatus(
+function putChecklist(
   state: WorkspaceState,
-  input: { symbol: string; sessionDate: string; itemId: string; status: string; at: string },
+  symbol: string,
+  sessionDate: string,
+  next: ReturnType<typeof checklistFor>,
 ): ActionResult {
-  if (!isWatchSymbol(input.symbol) || !isSessionDate(input.sessionDate)) return fail(state, "Unknown session.");
-  if (!isChecklistItemId(input.itemId) || !isChecklistStatus(input.status)) return fail(state, "Unknown checklist status.");
-  const current = checklistFor(state, input.symbol, input.sessionDate);
-  const next = withStatus(current, input.itemId, input.status, input.at);
   return ok({
     ...state,
-    checklists: { ...state.checklists, [sessionKey(input.symbol, input.sessionDate)]: next },
+    checklists: { ...state.checklists, [sessionKey(symbol, sessionDate)]: next },
   });
+}
+
+export function setReview(
+  state: WorkspaceState,
+  input: { symbol: string; sessionDate: string; itemId: string; review: string; at: string },
+): ActionResult {
+  if (!isWatchSymbol(input.symbol) || !isSessionDate(input.sessionDate)) return fail(state, "Unknown session.");
+  if (!isChecklistItemId(input.itemId) || !isReviewMark(input.review)) return fail(state, "Unknown review mark.");
+  const current = checklistFor(state, input.symbol, input.sessionDate);
+  return putChecklist(state, input.symbol, input.sessionDate, withReview(current, input.itemId, input.review as ReviewMark, input.at));
+}
+
+export function setObservation(
+  state: WorkspaceState,
+  input: { symbol: string; sessionDate: string; itemId: string; observation: string; at: string },
+): ActionResult {
+  if (!isWatchSymbol(input.symbol) || !isSessionDate(input.sessionDate)) return fail(state, "Unknown session.");
+  if (!isChecklistItemId(input.itemId) || !isObservation(input.observation)) return fail(state, "Unknown observation.");
+  const current = checklistFor(state, input.symbol, input.sessionDate);
+  return putChecklist(
+    state,
+    input.symbol,
+    input.sessionDate,
+    withObservation(current, input.itemId, input.observation as Observation, input.at),
+  );
+}
+
+export function setSetupNote(
+  state: WorkspaceState,
+  input: { symbol: string; sessionDate: string; note: SetupNote },
+): ActionResult {
+  if (!isWatchSymbol(input.symbol) || !isSessionDate(input.sessionDate)) return fail(state, "Unknown session.");
+  let observedAt: string | null = null;
+  const local = input.note.observedAtLocal.trim();
+  if (local) {
+    const zoned = easternLocalToIso(local);
+    if (!zoned.ok) return fail(state, zonedErrorMessage(zoned.reason));
+    observedAt = zoned.iso;
+  }
+  const current = checklistFor(state, input.symbol, input.sessionDate);
+  return putChecklist(state, input.symbol, input.sessionDate, withSetup(current, { ...input.note, observedAtLocal: local, observedAt }));
 }
 
 export function addChecklistEvidence(
@@ -109,10 +160,43 @@ export function attachMeetingEvidence(
     id: input.evidenceId,
     itemId: "fed_earnings",
     kind: "sourced_fact",
-    text: `${describeMeeting(input.meeting)} Calendar retrieved ${input.retrievedAt}. Page last-update text: ${input.lastUpdate ?? "unknown"}.`,
+    text: `${describeMeeting(input.meeting)} This is a Federal Reserve calendar row, not a ${input.symbol} headline. Calendar retrieved ${input.retrievedAt}. Page last-update text: ${input.lastUpdate ?? "unknown"}.`,
     recordedAt: input.at,
     sourceUrl: FED_CALENDAR_URL,
     sourceLabel: "Federal Reserve FOMC calendar",
+    publishedAt: null,
+    eventAt: null,
+    eventDate: input.meeting.startDate,
+    retrievedAt: input.retrievedAt,
+    scope: "macro",
+  };
+  return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
+}
+
+export function attachPressEvidence(
+  state: WorkspaceState,
+  input: {
+    symbol: string;
+    sessionDate: string;
+    item: FedPressItem;
+    evidenceId: string;
+    at: string;
+    retrievedAt: string;
+  },
+): ActionResult {
+  const evidence: Evidence = {
+    id: input.evidenceId,
+    itemId: "fed_earnings",
+    kind: "sourced_fact",
+    text: `${input.item.title}. Federal Reserve monetary-policy feed. Not a ${input.symbol} headline. Article body was not retrieved.`,
+    recordedAt: input.at,
+    sourceUrl: input.item.url,
+    sourceLabel: "Federal Reserve monetary-policy feed",
+    publishedAt: input.item.publishedAt,
+    eventAt: null,
+    eventDate: null,
+    retrievedAt: input.retrievedAt,
+    scope: "macro",
   };
   return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
 }
@@ -130,6 +214,11 @@ export function attachCaptureEvidence(
     recordedAt: input.at,
     sourceUrl: null,
     sourceLabel: capture.sourceName.trim() || null,
+    publishedAt: null,
+    eventAt: null,
+    eventDate: null,
+    retrievedAt: null,
+    scope: "user",
   };
   return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
 }

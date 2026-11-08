@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { easternLocalToIso, formatInstantEt, isoToEasternLocal, sessionDateET } from "@/domain/time";
+import { describeSession, easternLocalToIso, formatInstantEt, isoToEasternLocal, isWeekendDate, sessionDateET } from "@/domain/time";
 
 describe("Eastern session dates", () => {
   it("uses the Eastern calendar date across the UTC evening boundary", () => {
@@ -32,5 +32,20 @@ describe("Eastern session dates", () => {
     expect(formatInstantEt(null)).toBe("Unknown");
     expect(isoToEasternLocal("2026-11-08T14:30:00.000Z")).toBe("2026-11-08T09:30");
     expect(formatInstantEt("2026-11-08T05:00:00.000Z")).toContain("00:00 EST");
+  });
+
+  it("labels a UTC Sunday morning as Saturday evening in Eastern time, and a manual date as not today", () => {
+    const now = new Date("2026-11-08T03:30:00.000Z");
+    expect(sessionDateET(now)).toBe("2026-11-07");
+    const today = describeSession(now, "2026-11-07", false);
+    expect(today.matchesEasternToday).toBe(true);
+    expect(today.weekend).toBe(true);
+    expect(today.nowLabel).toContain("EST");
+    expect(isWeekendDate("2026-11-08")).toBe(true);
+    expect(isWeekendDate("2026-11-09")).toBe(false);
+    const manual = describeSession(now, "2026-11-08", true);
+    expect(manual.matchesEasternToday).toBe(false);
+    expect(manual.manual).toBe(true);
+    expect(manual.weekend).toBe(true);
   });
 });

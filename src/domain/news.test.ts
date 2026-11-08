@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { demoFixtures, DEMO_BANNER, itemsForView } from "@/domain/demo";
-import { classifyFreshness } from "@/domain/freshness";
+import { classifyFreshness, titleBadge } from "@/domain/freshness";
 import {
   addNewsItem,
   evidenceFromNews,
@@ -99,6 +99,8 @@ describe("urls and news pipeline", () => {
     expect(evidence.kind).toBe("sourced_fact");
     expect(evidence.text).not.toContain("Your reading, not the page.");
     expect(evidence.text).toContain("Interpretation was not copied.");
+    expect(evidence.scope).toBe("symbol");
+    expect(evidence.publishedAt).toBe("2026-11-08T15:00:00.000Z");
 
     const rumor = addNewsItem([], draft({ id: "r", rumor: true, url: "https://example.com/rumor" }), "primary");
     if (!rumor.ok) throw new Error(rumor.error);
@@ -144,6 +146,8 @@ describe("urls and news pipeline", () => {
     expect(classifyFreshness("2026-11-07T00:00:00.000Z", null, now).freshness).toBe("stale");
     expect(classifyFreshness("2026-11-09T00:00:00.000Z", null, now).freshness).toBe("unknown");
     expect(classifyFreshness(null, null, now).reason).not.toMatch(/ingest/i);
+    expect(titleBadge("stale")).not.toMatch(/live/i);
+    expect(titleBadge("fresh")).toBe("Recent title");
   });
 
   it("hides demo fixtures until asked and does not pretend X is verified", () => {

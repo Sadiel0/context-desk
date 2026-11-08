@@ -27,8 +27,8 @@ Data is stored in this browser under `context-desk.workspace.v1`. No account, no
 ## What the screen does
 
 - Watchlist: TSLA, META, AAPL, SPY, QQQ, IWM, DIA, and occasional SPX. SPX is the index, not the SPY ETF. Filters narrow the chips without dropping the selected symbol.
-- Checklist and option capture are keyed by symbol plus the Eastern calendar date. Reset clears that pair only. The news library, fundamentals, and earnings notes stay.
-- Checklist states are confirmed, not met, unknown, and not applicable. Unknown is the start. A count is not a ban. Gap is strategy-dependent and can be not applicable.
+- Checklist and option capture are keyed by symbol plus the Eastern calendar date. Reset clears that pair, including the optional TC2000 setup note. The news library, fundamentals, and earnings notes stay. A new date does not inherit technical marks.
+- Each of the six rows has a review mark and a separate observation. Reviewed means the look is finished. Observed means the condition was seen. Finishing an earnings review does not mark a trade safe, and the counts are not a score. The Spanish name and the English name are both on the row. Gap can be not applicable. An optional setup note (lateral or squeeze, widening, band exit, candle, nearby line or average, extension, TC2000 time, setup version) sits under the six rows and starts blank on every session.
 - Bollinger, moving averages, and trendline evidence can only be “you, in TC2000.” A headline cannot check them.
 - Fed meetings and earnings can take a sourced fact or your note. Attaching one does not change the status.
 - The option panel keeps bid/ask spread, premium debit, full premium exposure, estimated stop risk, and the contract-return plan separate. Blank is unknown, not zero. Fees and tick size stay unknown unless you type a fee you saw. The +10% field is a plan for the contract, not an account return and not a quote. Multiplier stays blank until you enter it or confirm 100.
@@ -55,7 +55,9 @@ Critique that the build follows:
 
 Session date is the `America/New_York` calendar date. A daylight-saving gap or overlap in a typed clock time is rejected instead of guessed. Displayed instants include EST or EDT.
 
-Checklist item ids: `fed_earnings`, `bollinger`, `moving_averages`, `trendline`, `gap`, `option_contract`.
+The first laptop view is the symbol, coverage, the next recorded symbol event or Unknown, the next FOMC date with its retrieval time, the six checklist rows, recent direct catalysts, and the contract capture. Source launchers, the full calendar, and company fields are in Sources. Longer explanations are in Help. Old direct items start under History. Macro titles start collapsed.
+
+Checklist item ids: `fed_earnings`, `bollinger`, `moving_averages`, `trendline`, `gap`, `option_contract`. Review is `unreviewed` or `reviewed`. Observation is `unknown`, `observed`, `not_observed`, or `not_applicable`. Evidence does not change either mark. Older saves that used a single status are migrated on load: Fed “confirmed” becomes reviewed with observation still unknown; the other five “confirmed” values become observed.
 
 Evidence kinds: `tc2000_user`, `sourced_fact`, `manual_note`. Technical items accept only `tc2000_user`. The option item accepts only `manual_note`. Fed and earnings accept `sourced_fact` or `manual_note`.
 
@@ -75,7 +77,7 @@ Workspace JSON is version `1`. Unreadable JSON or another version is left untouc
 
 | Source | Mode | What this draft does |
 | --- | --- | --- |
-| Federal Reserve calendar and monetary-policy RSS | Live read | Server fetch of two allowlisted `www.federalreserve.gov` URLs, 8s timeout, no redirects, 2 MB cap. Meeting rows and feed titles, links, and `pubDate`s. Article bodies are not stored. |
+| Federal Reserve calendar and monetary-policy RSS | Public read | Server fetch of two allowlisted `www.federalreserve.gov` URLs, 8s timeout, no redirects, 2 MB cap. Meeting rows and feed titles, links, and `pubDate`s. A successful fetch is not a freshness mark. Titles are macro context, not a ticker stream. Article bodies are not stored. |
 | Finviz | Manual | Quote launcher for stocks and ETFs. No API call. |
 | MarketWatch | Manual | Quote launcher and RSS-directory link. No ingest. |
 | Yahoo Finance | Manual | Quote launcher. SPX opens `^GSPC`. No Finance API. |

@@ -63,6 +63,34 @@ export function sessionDateET(now: Date): string {
   return `${wall.year}-${pad(wall.month)}-${pad(wall.day)}`;
 }
 
+export function isWeekendDate(sessionDate: string): boolean {
+  if (!isSessionDate(sessionDate)) return false;
+  const [year, month, day] = sessionDate.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
+
+export type SessionClock = {
+  nowLabel: string;
+  sessionLabel: string;
+  weekend: boolean;
+  matchesEasternToday: boolean;
+  manual: boolean;
+};
+
+export function describeSession(now: Date, sessionDate: string, manual: boolean): SessionClock {
+  const wall = wallClock(now);
+  const month = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short" }).format(now);
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(now);
+  return {
+    nowLabel: `${weekday}, ${month} ${wall.day}, ${wall.year}, ${pad(wall.hour)}:${pad(wall.minute)} ${wall.abbr}`,
+    sessionLabel: formatSessionLabel(sessionDate),
+    weekend: isWeekendDate(sessionDate),
+    matchesEasternToday: sessionDate === sessionDateET(now),
+    manual,
+  };
+}
+
 export function formatSessionLabel(sessionDate: string): string {
   if (!isSessionDate(sessionDate)) return "Unknown session date";
   const [year, month, day] = sessionDate.split("-").map(Number);

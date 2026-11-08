@@ -5,7 +5,7 @@ import type { Instrument } from "@/domain/watchlist";
 import { SafeLink } from "@/components/safe-link";
 
 const MODE_LABEL: Record<AdapterMode, string> = {
-  live: "Live read",
+  live: "Public read",
   manual: "Manual",
   demo: "Demo only",
   unconfigured: "Not connected",
@@ -27,7 +27,7 @@ export function SourcesPanel({ instrument, demo, onDemo }: { instrument: Instrum
           <article key={adapter.id} className="source-card">
             <h3>
               {adapter.label}{" "}
-              <span className={`badge ${adapter.mode === "live" ? "badge-live" : adapter.mode === "unconfigured" ? "badge-off" : adapter.mode === "demo" ? "badge-demo" : ""}`}>
+              <span className={`badge ${adapter.mode === "unconfigured" ? "badge-off" : adapter.mode === "demo" ? "badge-demo" : ""}`}>
                 {MODE_LABEL[adapter.mode]}
               </span>
             </h3>

@@ -35,8 +35,8 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 h1, h2, h3, .serif {
@@ -91,7 +91,7 @@ a:hover {
 .mast {
   background: var(--color-ink);
   color: var(--color-paper);
-  padding: 1rem 0 1.1rem;
+  padding: 0.45rem 0 0.55rem;
 }
 
 .mast a {
@@ -124,19 +124,21 @@ a:hover {
 }
 
 .mast h1 {
-  margin: 0.15rem 0 0;
-  font-size: 2rem;
-  line-height: 1;
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+  line-height: 1.1;
 }
 
 .who {
-  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
-.mast-note {
-  margin: 0.9rem 0 0;
-  max-width: 68rem;
+.now-line {
+  margin: 0.25rem 0 0;
   color: #e7e0d6;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
 }
 
 .session-controls {
@@ -191,7 +193,7 @@ a:hover {
 }
 
 .band {
-  padding: 0.85rem 0 0;
+  padding: 0.4rem 0 0;
 }
 
 .watch-row {
@@ -247,24 +249,48 @@ a:hover {
   padding-top: 0.4rem;
 }
 
-.ticker-row h2 {
+.symbol-strip {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  align-items: start;
+  padding-top: 0.35rem;
+}
+
+.symbol-strip h2 {
   margin: 0;
-  font-size: 3rem;
-  line-height: 0.9;
+  font-size: 1.8rem;
+  line-height: 0.95;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 8.2rem minmax(0, 1fr);
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.facts dt {
+  font-weight: 700;
+}
+
+.facts dd {
+  margin: 0;
 }
 
 .desk {
   display: grid;
-  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr) minmax(20rem, 24.5rem);
-  gap: 1rem;
+  grid-template-columns: minmax(22rem, 1.15fr) minmax(16rem, 0.9fr) minmax(18rem, 0.95fr);
+  gap: 0.7rem;
   align-items: start;
-  padding-top: 0.8rem;
+  padding-top: 0.45rem;
 }
 
 .panel {
   background: var(--color-raised);
   border: 1px solid var(--color-rule);
-  padding: 0.9rem;
+  padding: 0.65rem 0.75rem;
 }
 
 .panel + .panel, .stack {
@@ -307,16 +333,74 @@ a:hover {
   background: var(--color-paper);
 }
 
-.status-list label.confirmed {
-  background: var(--color-signal-wash);
-}
-
-.status-list label.not_met {
-  background: var(--color-clay-wash);
-}
-
+.status-list label.unreviewed,
 .status-list label.unknown {
   background: var(--color-amber-wash);
+}
+
+.status-list label:has(input:checked) {
+  border-color: var(--color-signal);
+  box-shadow: inset 0 0 0 1px var(--color-signal);
+}
+
+.check-row {
+  border-top: 1px solid var(--color-rule);
+  padding: 0.12rem 0 0.08rem;
+}
+
+.result-line {
+  margin: 0.15rem 0 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.check-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.check-title .en::before {
+  content: " · ";
+  font-weight: 500;
+  color: var(--color-ink-soft);
+}
+
+.check-title .en {
+  font-weight: 500;
+  color: var(--color-ink-soft);
+}
+
+.mark-line,
+.status-list {
+  flex-wrap: nowrap;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-signal);
+  font: inherit;
+  padding: 0.1rem 0.2rem;
+  cursor: pointer;
+}
+
+.evidence-list,
+.compact-list {
+  margin: 0.3rem 0;
+  padding-left: 1.1rem;
+}
+
+.setup-note,
+.drawer-body details {
+  margin-top: 0.6rem;
+}
+
+.dialog-wide {
+  width: min(52rem, calc(100vw - 2rem));
+  max-height: min(86vh, 44rem);
+  overflow: auto;
 }
 
 .unknown-word {
@@ -407,8 +491,8 @@ dl.math dd {
 }
 
 .notice {
-  min-height: 1.4rem;
-  margin: 0.4rem 0 0;
+  min-height: 0;
+  margin: 0.15rem 0 0;
 }
 
 .sr-only {
@@ -456,8 +540,8 @@ dl.math dd {
   background: var(--color-paper);
 }
 
-.badge-live {
-  background: var(--color-signal-wash);
+.badge-retrieved {
+  background: var(--color-paper);
 }
 
 .badge-off {
@@ -493,8 +577,9 @@ dl.math dd {
     grid-template-columns: 1fr;
   }
 
-  .ticker-row h2 {
-    font-size: 2.4rem;
+  .symbol-strip,
+  .facts {
+    grid-template-columns: 1fr;
   }
 
   .chips {
@@ -505,6 +590,11 @@ dl.math dd {
 @media (max-width: 640px) {
   .grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .mark-line,
+  .status-list {
+    flex-wrap: wrap;
   }
 
   body {

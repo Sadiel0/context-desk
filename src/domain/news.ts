@@ -366,5 +366,10 @@ export function evidenceFromNews(item: NewsItem, evidenceId: string, recordedAt:
     recordedAt,
     sourceUrl: item.url,
     sourceLabel: item.sourceLabel,
+    publishedAt: item.publishedAt,
+    eventAt: item.eventAt,
+    eventDate: null,
+    retrievedAt: item.ingestedAt,
+    scope: item.relevance === "direct" ? "symbol" : item.relevance === "inferred" ? "macro" : "user",
   };
 }
