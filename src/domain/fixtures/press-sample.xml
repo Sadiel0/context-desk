@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<rss version="2.0">
+  <channel>
+    <title>FRB: Press Release - Monetary Policy</title>
+    <item>
+      <title>Federal Reserve issues FOMC statement</title>
+      <link><![CDATA[https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm]]></link>
+      <guid><![CDATA[https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm]]></guid>
+      <pubDate><![CDATA[Wed, 28 Oct 2026 18:00:00 GMT]]></pubDate>
+    </item>
+    <item>
+      <title>Minutes of the Board&#39;s discount rate meetings</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20261013a.htm</link>
+      <pubDate>Tue, 13 Oct 2026 18:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Skipped external</title>
+      <link>https://evil.example/phish</link>
+      <pubDate>Tue, 13 Oct 2026 18:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>No clock in this fixture</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260101a.htm</link>
+    </item>
+  </channel>
+</rss>
