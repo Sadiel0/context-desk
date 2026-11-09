@@ -1,26 +1,38 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Newsreader, Source_Sans_3 } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const sans = Source_Sans_3({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+// Files live in the repo so `next build` does not call fonts.googleapis.com.
+const sans = localFont({
+  src: [
+    { path: "./fonts/source-sans-3-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/source-sans-3-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/source-sans-3-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/source-sans-3-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-source-sans",
   display: "swap",
+  adjustFontFallback: "Arial",
 });
 
-const serif = Newsreader({
-  subsets: ["latin"],
-  weight: ["500", "600"],
+const serif = localFont({
+  src: [
+    { path: "./fonts/newsreader-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/newsreader-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-newsreader",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const mono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--font-plex",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {

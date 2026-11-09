@@ -55,7 +55,7 @@ Critique that the build follows:
 - Status is a labeled radio. Unknown uses an amber wash and the word Unknown, so a missing value is not a calm zero and not a green check.
 - There is no price chart and no profit card. Those would impersonate TC2000 and a broker.
 - Dark mode is the only theme. Six named colors: ink `#f4efe6`, paper `#141210`, rule `#3d3832`, signal `#9fd0da`, amber `#e6c27a`, clay `#e7b2ab`. Washes are darker tints of those, not extra hues. Native inputs, selects, and date fields use `color-scheme: dark`.
-- Type: Newsreader for the symbol and titles, Source Sans 3 for the interface, IBM Plex Mono for figures and timestamps.
+- Type: Newsreader for the symbol and titles, Source Sans 3 for the interface, IBM Plex Mono for figures and timestamps. The woff2 files are in `src/app/fonts`, loaded with `next/font/local`. The build does not download them from Google.
 - DEMO is a full-width clay banner, not a toast.
 - Narrow widths stack symbol, tape, headlines, then the checklist. Calendar and fundamentals stay in Sources. The contract stays in its drawer.
 - Focus rings stay visible. Motion is not used. `prefers-reduced-motion` disables animation if any is introduced later.
