@@ -22,7 +22,9 @@ npm run lint
 npm run build
 ```
 
-Data is stored in this browser under `context-desk.workspace.v1`. No account, no API key, and no environment variable is required. The Federal Reserve reader runs server-side when you open the desk or press Refresh.
+Data is stored in this browser under `context-desk.workspace.v1`. No account, no API key, and no environment variable is required. The Federal Reserve reader, the Yahoo Finance symbol RSS reader, and the SEC submissions reader run server-side when you open the desk.
+
+This dev server’s loopback address is reachable on the machine that runs it. It is not a hosted preview. Opening it here does not publish the draft.
 
 ## What the screen does
 
@@ -45,7 +47,7 @@ Critique that the build follows:
 - Equal columns would starve headlines, so the feed is the flexible center.
 - Status is a labeled radio. Unknown uses an amber wash and the word Unknown, so a missing value is not a calm zero and not a green check.
 - There is no price chart and no profit card. Those would impersonate TC2000 and a broker.
-- Six named colors: ink `#1c1917`, paper `#f3efe6`, rule `#d5cfc3`, signal `#143f4d`, amber `#7a4e0d`, clay `#6f3330`. Washes are tints of those, not extra hues.
+- Dark mode is the only theme. Six named colors: ink `#f4efe6`, paper `#141210`, rule `#3d3832`, signal `#9fd0da`, amber `#e6c27a`, clay `#e7b2ab`. Washes are darker tints of those, not extra hues. Native inputs, selects, and date fields use `color-scheme: dark`.
 - Type: Newsreader for the symbol and titles, Source Sans 3 for the interface, IBM Plex Mono for figures and timestamps.
 - DEMO is a full-width clay banner, not a toast.
 - Narrow widths stack in the order symbol, checklist, feed, then calendar, contract, and fundamentals.
@@ -55,7 +57,11 @@ Critique that the build follows:
 
 Session date is the `America/New_York` calendar date. A daylight-saving gap or overlap in a typed clock time is rejected instead of guessed. Displayed instants include EST or EDT.
 
-The first laptop view is the symbol, coverage, the next recorded symbol event or Unknown, the next FOMC date with its retrieval time, the six checklist rows, recent direct catalysts, and the contract capture. Source launchers, the full calendar, and company fields are in Sources. Longer explanations are in Help. Old direct items start under History. Macro titles start collapsed.
+The first laptop view is the symbol, a short coverage line, the next recorded symbol event or Unknown, the next FOMC date with its retrieval time, the six checklist rows, Yahoo headlines that name the symbol, and the contract capture. Yahoo items that do not name the symbol, older headlines, SEC filings, the X sweeper, and macro titles start collapsed. Source launchers, the full calendar, and company fields are in Sources. Longer explanations are in Help.
+
+Yahoo and SEC requests are allowlisted, refuse redirects, time out at 8 seconds, and cap the body at 2 MB. A successful process caches a symbol for 90 seconds (20 seconds if a source errored). Publication age and retrieval time stay separate. Yahoo may itself cache the RSS for about five minutes; that is the origin’s header, not a freshness claim.
+
+X parent snapshot schema is `context-desk.x-snapshot.v1`. Required: `live: false`, `polling: false`, `retrievalMethod: "hosted-public-x-read"`, `retrievedAt`, identities with `verified: true` plus a numeric `id` and username, and posts whose `https://x.com/{username}/status/{id}` URL matches that identity. The server never re-checks X. An invalid file yields no posts.
 
 Checklist item ids: `fed_earnings`, `bollinger`, `moving_averages`, `trendline`, `gap`, `option_contract`. Review is `unreviewed` or `reviewed`. Observation is `unknown`, `observed`, `not_observed`, or `not_applicable`. Evidence does not change either mark. Older saves that used a single status are migrated on load: Fed “confirmed” becomes reviewed with observation still unknown; the other five “confirmed” values become observed.
 
@@ -78,13 +84,15 @@ Workspace JSON is version `1`. Unreadable JSON or another version is left untouc
 | Source | Mode | What this draft does |
 | --- | --- | --- |
 | Federal Reserve calendar and monetary-policy RSS | Public read | Server fetch of two allowlisted `www.federalreserve.gov` URLs, 8s timeout, no redirects, 2 MB cap. Meeting rows and feed titles, links, and `pubDate`s. A successful fetch is not a freshness mark. Titles are macro context, not a ticker stream. Article bodies are not stored. |
+| SEC EDGAR submissions | Public read | `data.sec.gov/submissions/CIK##########.json` for AAPL, TSLA, META, SPY, and DIA after the ticker field matched on 2026-11-09. QQQ is a name match only (empty tickers array, legal name contains QQQ). IWM is Unknown. SPX is not an issuer. Up to six recent filings, acceptance time, and the filing index link. Acceptance time is not the business-event clock. No article body. |
+| Yahoo Finance symbol RSS | Public read, aggregator | `feeds.finance.yahoo.com/rss/2.0/headline` for the symbol, or `^GSPC` when the symbol is SPX. Titles, links, and `pubDate`s. A feed item is “names symbol” only when the title or Yahoo’s summary names it. Other items stay under feed association. Not publisher coverage and not a quote. Full text is not retrieved. The quote page stays a launcher. |
 | Finviz | Manual | Quote launcher for stocks and ETFs. No API call. |
 | MarketWatch | Manual | Quote launcher and RSS-directory link. No ingest. |
-| Yahoo Finance | Manual | Quote launcher. SPX opens `^GSPC`. No Finance API. |
 | OptionSlam | Manual | Stock earnings launcher. No API. Before open / after close are not clock times. |
-| Bloomberg, WSJ, CNBC | Manual | Launchers only. |
+| Bloomberg, WSJ | Manual | Launchers only. |
+| CNBC | Manual | Quote launcher. A public Investing franchise RSS exists and is not a per-symbol feed, so it is not ingested as ticker news. |
 | Manual capture and pasted X text | Manual | You type what you read. A typed handle is not identity verification. |
-| X catalyst sweeper | Not connected | Paused. No polling, cookies, or social session. Elon Musk and Donald Trump are names only; handles and numeric ids are not verified. |
+| X catalyst sweeper | Disconnected | Hosted public user lookup returned `client-not-enrolled` / Client Forbidden. No handle, numeric id, or post is verified, and none is shown. The server does not call `api.x.com` and does not accept a token. Optional parent file `data/x-snapshot.json` must match `context-desk.x-snapshot.v1` with `live: false`. Until it validates, the sweeper is not live. |
 | Demo fixtures | Demo, off by default | Invented examples. Not market data. |
 | TC2000 | Manual, outside this app | Not embedded, scraped, or replaced. |
 | Thinkorswim / Schwab | Not connected | No order API. Phone execution only. |
@@ -95,27 +103,26 @@ Launchers that this environment actually received HTTP 200 for: Federal Reserve 
 
 - Finviz has announced an API. Fields, freshness, storage rights, and subscription were not verified. Reference: [Finviz API note](https://finviz.com/blog/our-upgraded-api-higher-limits-clearer-data-and-more-ways-to-connect/).
 - MarketWatch has an RSS directory. Full-text processing rights are unresolved, so the directory is a launcher only.
-- Yahoo Finance has no verified finance-specific API here.
+- Yahoo’s symbol RSS is a public aggregator feed that returned HTTP 200 here. It is not a licensed full-text feed, and Yahoo’s current developer page for that exact URL was not re-certified.
 - OptionSlam has no verified supported API. BO/AC is not a clock time.
-- A publisher RSS feed is not permission to store or process the article.
+- A publisher RSS feed is not permission to store or process the article. CNBC’s Investing franchise RSS is general, so it stays a launcher.
 - Schwab’s developer catalog was not verified for an endpoint or an entitlement. This desk does not use it.
-- X monitoring needs a supported feed plus verified handles and numeric ids. A chat connector is not an entitlement for this app. No cookie or token scraping.
+- X: the hosted public lookup in this session returned `client-not-enrolled` / Client Forbidden. Handles for Elon Musk and Donald Trump were not verified. Do not send a bearer token. A parent snapshot is the only ingest, and it is not a live poller.
 
 The Federal Reserve pages used are public: [feeds](https://www.federalreserve.gov/feeds/feeds.htm) and the [FOMC calendar](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm). A meeting date does not establish the statement release time. The calendar text says dates are tentative until confirmed at the prior meeting. The parsed 2026 rows are not monthly.
 
 ## Tests
 
-Unit tests cover Eastern dates across the March 2026 spring-forward and November 2026 fall-back, checklist isolation and reset, evidence kind rules, option spread versus debit versus exposure versus stop versus plan, missing multiplier not becoming zero, SPX versus SPXW wording, URL rejection, dedupe and corrections, freshness without inventing it from ingest time, demo hiding, the Fed HTML and RSS parsers, redirect / foreign-host / oversize / timeout handling, and corrupt local storage left untouched.
+Unit tests cover Eastern dates across the March 2026 spring-forward and November 2026 fall-back, checklist isolation and reset, evidence kind rules, option spread versus debit versus exposure versus stop versus plan, missing multiplier not becoming zero, SPX versus SPXW wording, URL rejection, dedupe and corrections, freshness without inventing it from ingest time, demo hiding, the Fed HTML and RSS parsers, redirect / foreign-host / oversize / timeout handling, corrupt local storage left untouched, Yahoo mention versus feed association, SEC ticker-field withholding, headline and filing attach without changing review or observation, and X snapshot rejection when a payload claims to be live or uses a non-X URL. Live Yahoo and SEC responses are not required for the unit tests. A separate manual probe in this environment called those hosts.
 
 `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build` are the checks. Browser smoke is desktop and a narrow width against the dev server.
 
 ## Next
 
 - Keep TC2000 and the phone as they are.
-- Add another live adapter only after the feed’s fields, freshness, and storage rights are verified.
-- Verify X handles and ids before any sweeper exists. Do not poll in the meantime.
 - Earnings stay manual until a permitted source is chosen.
-- Do not deploy this draft publicly from here.
+- X stays disconnected until a parent supplies a validated `context-desk.x-snapshot.v1` file from a hosted public read. This app will not take a token.
+- Do not deploy this draft publicly from here. A user-accessible copy is this repo run locally with `npm install` and `npm run dev`. Loopback inside a cloud VM is not that preview.
 
 ## Not in this desk
 

@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import type { ActionResult } from "@/domain/actions";
-import { TICKER_COVERAGE, partitionDirect } from "@/domain/coverage";
+import { partitionDirect } from "@/domain/coverage";
+import { coveragePending, coverageSummary, type AggregatorHeadline, type TickerLoad } from "@/domain/ticker-feed";
+import type { SecFiling } from "@/domain/sec-parse";
+import type { XDeskStatus } from "@/domain/x-snapshot";
+import { SourcedContext } from "@/components/sourced-context";
 import { agePhrase, classifyFreshness, retrievalPhrase, titleBadge } from "@/domain/freshness";
 import { duplicateCount, groupNews, type FeedQuery, type NewsDraft, type NewsItem } from "@/domain/news";
 import { formatInstantEt } from "@/domain/time";
@@ -18,18 +22,30 @@ export function ContextFeed({
   demo,
   now,
   fed,
+  ticker,
+  tickerFailed,
+  tickerLoading,
+  x,
   onCommit,
   onAttach,
   onAttachPress,
+  onAttachHeadline,
+  onAttachFiling,
 }: {
   symbol: string;
   items: NewsItem[];
   demo: boolean;
   now: Date;
   fed: FedLoadResult | null;
+  ticker: TickerLoad | null;
+  tickerFailed: string | null;
+  tickerLoading: boolean;
+  x: XDeskStatus;
   onCommit: (draft: NewsDraft, mode: "primary" | "duplicate" | "correction" | "revise") => ActionResult;
   onAttach: (item: NewsItem) => void;
   onAttachPress: (item: FedPressItem) => void;
+  onAttachHeadline: (item: AggregatorHeadline) => void;
+  onAttachFiling: (filing: SecFiling) => void;
 }) {
   const [query, setQuery] = useState<Pick<FeedQuery, "showCorrectedOriginals" | "showDuplicates">>({
     showCorrectedOriginals: false,
@@ -51,8 +67,11 @@ export function ContextFeed({
 
   return (
     <section className="panel" id="feed" aria-labelledby="feed-title">
-      <h2 id="feed-title">Direct catalysts</h2>
-      <p className="meta">{TICKER_COVERAGE}</p>
+      <h2 id="feed-title">Catalysts</h2>
+      <p className="meta">
+        {ticker ? coverageSummary(ticker) : coveragePending(tickerFailed ?? (tickerLoading ? "retrieving public feeds." : "Unknown."))}
+      </p>
+      <SourcedContext symbol={symbol} now={now} ticker={ticker} x={x} onAttachHeadline={onAttachHeadline} onAttachFiling={onAttachFiling} />
       <div className="inline-actions">
         <Button type="button" size="sm" onClick={() => setForm(form === "create" ? null : "create")}>
           Record a sourced item

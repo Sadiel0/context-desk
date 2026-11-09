@@ -1,4 +1,5 @@
 import type { Instrument } from "@/domain/watchlist";
+import { X_GAP } from "@/domain/x-snapshot";
 
 export type AdapterMode = "live" | "manual" | "demo" | "unconfigured";
 
@@ -107,11 +108,30 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
     ],
   },
   {
+    id: "sec",
+    label: "SEC EDGAR",
+    mode: "live",
+    summary:
+      "Read-only submissions JSON from data.sec.gov for CIKs whose ticker field was checked. Recent filing rows, acceptance time, and the filing index link. Not a news article and not an analyst target.",
+    unresolved:
+      "IWM has no confirmed ticker-field CIK here. QQQ is a name match because the tickers array was empty. SPX is an index and has no issuer filing. www.sec.gov/files/company_tickers.json returned HTTP 403 in this environment, so the map was checked issuer by issuer.",
+    links: (instrument) => [
+      {
+        label: "EDGAR search",
+        url: `https://www.sec.gov/edgar/search/#/q=${encodeURIComponent(instrument.symbol)}`,
+        verifiedInBuild: false,
+        note: "Launcher only. The desk reads data.sec.gov submissions, not this search page.",
+      },
+    ],
+  },
+  {
     id: "yahoo",
     label: "Yahoo Finance",
-    mode: "manual",
-    summary: "Launcher only. No Finance-specific API was verified, so none is called.",
-    unresolved: "Premium-range and quote rules are whatever you read on the page. This desk does not import them.",
+    mode: "live",
+    summary:
+      "Symbol headline RSS from feeds.finance.yahoo.com. Aggregator titles, links, and pubDates. Not the publisher, not a quote, and not full article text. The quote page is still only a launcher.",
+    unresolved:
+      "Yahoo’s current developer documentation for this RSS URL was not re-certified. The URL returned RSS in this environment. A symbol feed item counts as naming the symbol only when the title or feed summary does.",
     links: (instrument) => [
       {
         label: instrument.symbol === "SPX" ? "Yahoo ^GSPC" : "Yahoo quote",
@@ -122,10 +142,10 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
         verifiedInBuild: instrument.symbol === "AAPL" || instrument.symbol === "SPX",
         note:
           instrument.symbol === "SPX"
-            ? "Index page is ^GSPC, not SPY. HTTP 200 in this environment. Not a feed."
+            ? "Index page is ^GSPC, not SPY. HTTP 200 in this environment. The quote page is a launcher. The ingested feed is the symbol RSS."
             : instrument.symbol === "AAPL"
-              ? "HTTP 200 in this environment. Not a feed."
-              : "Same path pattern as AAPL, which returned HTTP 200. This symbol was not separately checked. Not a feed.",
+              ? "Quote page HTTP 200. Launcher only. The ingested feed is the symbol RSS, not this page."
+              : "Same quote-page pattern as AAPL, which returned HTTP 200. This symbol’s quote page was not separately checked.",
       },
     ],
   },
@@ -190,8 +210,9 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
     id: "cnbc",
     label: "CNBC",
     mode: "manual",
-    summary: "Launcher only. No feed is connected.",
-    unresolved: "A reachable page is not permission to store or process the article.",
+    summary: "Launcher only. The public franchise RSS is not a per-symbol feed, so it is not ingested.",
+    unresolved:
+      "A public CNBC Investing franchise RSS returned HTTP 200. It is not a per-symbol feed, so it is not used as ticker news. A reachable page is not permission to store the article.",
     links: (instrument) => [
       {
         label: "CNBC quote",
@@ -226,8 +247,8 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
     label: "X catalyst sweeper",
     mode: "unconfigured",
     summary:
-      "Paused. No polling, no cookies, and no social-session access. A genuine post would still not prove its contents.",
-    unresolved: "Example names are Elon Musk and Donald Trump. Exact handles and numeric ids are not verified.",
+      "Disconnected. No polling and no posts on screen. A genuine post would still not prove its contents.",
+    unresolved: X_GAP,
     links: () => [],
   },
   {
@@ -297,10 +318,11 @@ export const X_ALLOWLIST_PENDING: readonly PendingIdentity[] = [
   },
 ];
 
-export function xSweeperStatus(): { mode: "unconfigured"; polling: false; reason: string } {
+export function xSweeperStatus(): { mode: "unconfigured"; polling: false; live: false; reason: string } {
   return {
     mode: "unconfigured",
     polling: false,
-    reason: "No supported X feed is configured. Monitoring stays off.",
+    live: false,
+    reason: X_GAP,
   };
 }

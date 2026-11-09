@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #1c1917;
-  --color-ink-soft: #44403c;
-  --color-paper: #f3efe6;
-  --color-raised: #fbf8f3;
-  --color-rule: #d5cfc3;
-  --color-signal: #143f4d;
-  --color-signal-wash: #e4eef1;
-  --color-amber: #7a4e0d;
-  --color-amber-wash: #f6edd9;
-  --color-clay: #6f3330;
-  --color-clay-wash: #f6e7e3;
+  --color-ink: #f4efe6;
+  --color-ink-soft: #c4bbb0;
+  --color-paper: #141210;
+  --color-raised: #1e1b18;
+  --color-rule: #3d3832;
+  --color-signal: #9fd0da;
+  --color-signal-wash: #163036;
+  --color-amber: #e6c27a;
+  --color-amber-wash: #3a311c;
+  --color-clay: #e7b2ab;
+  --color-clay-wash: #3a2624;
   --font-sans: var(--font-source-sans), "Segoe UI", sans-serif;
   --font-serif: var(--font-newsreader), Georgia, serif;
   --font-mono: var(--font-plex), ui-monospace, monospace;
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * {
@@ -59,7 +59,20 @@ a:hover {
 }
 
 ::selection {
-  background: #d5e4ea;
+  background: #245058;
+  color: var(--color-ink);
+}
+
+::placeholder {
+  color: var(--color-ink-soft);
+}
+
+input, select, textarea, button {
+  color-scheme: dark;
+}
+
+select.control option {
+  background-color: var(--color-raised);
   color: var(--color-ink);
 }
 
@@ -89,17 +102,18 @@ a:hover {
 }
 
 .mast {
-  background: var(--color-ink);
-  color: var(--color-paper);
+  background: #0e0d0c;
+  color: var(--color-ink);
+  border-bottom: 1px solid var(--color-rule);
   padding: 0.45rem 0 0.55rem;
 }
 
 .mast a {
-  color: var(--color-paper);
+  color: var(--color-signal);
 }
 
 .mast :focus-visible {
-  outline-color: var(--color-paper);
+  outline-color: var(--color-signal);
 }
 
 .mast-inner, .band, .desk {
@@ -120,7 +134,7 @@ a:hover {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #d9d0c3;
+  color: var(--color-ink-soft);
 }
 
 .mast h1 {
@@ -136,7 +150,7 @@ a:hover {
 
 .now-line {
   margin: 0.25rem 0 0;
-  color: #e7e0d6;
+  color: var(--color-ink);
   font-family: var(--font-mono);
   font-size: 0.8rem;
 }
@@ -154,7 +168,7 @@ a:hover {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.82rem;
-  color: #e7e0d6;
+  color: var(--color-ink);
 }
 
 .session-controls .control {
@@ -510,7 +524,7 @@ dl.math dd {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 25, 23, 0.45);
+  background: rgba(0, 0, 0, 0.66);
 }
 
 .dialog {

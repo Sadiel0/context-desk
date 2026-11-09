@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Newsreader, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
@@ -29,9 +29,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#141210",
+  colorScheme: "dark",
+};
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ colorScheme: "dark" }}>
       <body className={`${sans.variable} ${serif.variable} ${mono.variable}`}>{children}</body>
     </html>
   );

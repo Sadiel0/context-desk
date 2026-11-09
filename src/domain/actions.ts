@@ -12,6 +12,8 @@ import {
   type SetupNote,
 } from "@/domain/checklist";
 import { describeMeeting, type FedPressItem, type FomcMeeting } from "@/domain/fed-parse";
+import type { SecFiling } from "@/domain/sec-parse";
+import type { AggregatorHeadline, TickerSec } from "@/domain/ticker-feed";
 import {
   isEarningsTiming,
   type EarningsEvent,
@@ -197,6 +199,74 @@ export function attachPressEvidence(
     eventDate: null,
     retrievedAt: input.retrievedAt,
     scope: "macro",
+  };
+  return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
+}
+
+export function attachHeadlineEvidence(
+  state: WorkspaceState,
+  input: {
+    symbol: string;
+    sessionDate: string;
+    item: AggregatorHeadline;
+    querySymbol: string;
+    evidenceId: string;
+    at: string;
+    retrievedAt: string;
+  },
+): ActionResult {
+  if (input.item.mention !== "names_symbol") {
+    return fail(state, "A headline that does not name the symbol is not attached as symbol evidence.");
+  }
+  const evidence: Evidence = {
+    id: input.evidenceId,
+    itemId: "fed_earnings",
+    kind: "sourced_fact",
+    text: `${input.item.title}. Yahoo Finance aggregator headline feed, query ${input.querySymbol}. Link host ${input.item.linkHost}. This is not the publisher and not a quote from this desk. The feed summary was not copied.`,
+    recordedAt: input.at,
+    sourceUrl: input.item.url,
+    sourceLabel: "Yahoo Finance symbol RSS (aggregator)",
+    publishedAt: input.item.publishedAt,
+    eventAt: null,
+    eventDate: null,
+    retrievedAt: input.retrievedAt,
+    scope: "symbol",
+  };
+  return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
+}
+
+export function attachFilingEvidence(
+  state: WorkspaceState,
+  input: {
+    symbol: string;
+    sessionDate: string;
+    filing: SecFiling;
+    sec: TickerSec;
+    evidenceId: string;
+    at: string;
+    retrievedAt: string;
+  },
+): ActionResult {
+  if (input.sec.state !== "confirmed" && input.sec.state !== "name_match") {
+    return fail(state, "No confirmed SEC filing is available to attach.");
+  }
+  const match =
+    input.sec.state === "confirmed"
+      ? `SEC tickers field includes ${input.symbol}.`
+      : `Name match only. The SEC tickers field did not confirm ${input.symbol}.`;
+  const evidence: Evidence = {
+    id: input.evidenceId,
+    itemId: "fed_earnings",
+    kind: "sourced_fact",
+    text: `${input.filing.form}. ${input.sec.name ?? "Issuer"}. ${match} Filing date ${input.filing.filingDate ?? "Unknown"} is a date, not the business-event clock. SEC acceptance ${input.filing.acceptanceAt ?? "Unknown"}. Not a news article and not an analyst target.`,
+    recordedAt: input.at,
+    sourceUrl: input.filing.indexUrl,
+    sourceLabel: "SEC EDGAR submissions",
+    publishedAt: input.filing.acceptanceAt,
+    eventAt: null,
+    eventDate: input.filing.filingDate,
+    retrievedAt: input.retrievedAt,
+    scope: "symbol",
   };
   return addChecklistEvidence(state, { symbol: input.symbol, sessionDate: input.sessionDate, evidence });
 }

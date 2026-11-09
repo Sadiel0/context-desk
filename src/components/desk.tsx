@@ -4,6 +4,8 @@ import {
   addChecklistEvidence,
   addEarnings,
   attachCaptureEvidence,
+  attachFilingEvidence,
+  attachHeadlineEvidence,
   attachMeetingEvidence,
   attachNewsEvidence,
   attachPressEvidence,
@@ -24,6 +26,7 @@ import {
 import type { ChecklistItemId, Evidence, Observation, ReviewMark, SetupNote } from "@/domain/checklist";
 import { CHECKLIST_ITEMS } from "@/domain/checklist";
 import { nextFomcDate, nextSymbolEvent } from "@/domain/coverage";
+import { coveragePending, coverageShort } from "@/domain/ticker-feed";
 import { DEMO_BANNER, itemsForView } from "@/domain/demo";
 import type { FedPressItem, FomcMeeting } from "@/domain/fed-parse";
 import { retrievalPhrase } from "@/domain/freshness";
@@ -39,7 +42,9 @@ import { FundamentalsPanel } from "@/components/fundamentals-panel";
 import { OptionsPanel } from "@/components/options-panel";
 import { SourcesPanel } from "@/components/sources-panel";
 import { useFed } from "@/components/use-fed";
+import { useTicker } from "@/components/use-ticker";
 import { useWorkspace } from "@/components/use-workspace";
+import { useXStatus } from "@/components/use-x";
 import { WatchlistBar } from "@/components/watchlist-bar";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -49,7 +54,9 @@ import { Input } from "@/components/ui/input";
 export function Desk() {
   const workspace = useWorkspace();
   const fed = useFed();
+  const x = useXStatus();
   const { state, ready, now, sessionDate } = workspace;
+  const ticker = useTicker(state?.selectedSymbol ?? "TSLA");
 
   if (!ready || !state || !now || !sessionDate) {
     return (
@@ -201,7 +208,11 @@ export function Desk() {
               {clock.matchesEasternToday ? " · Today in Eastern time" : " · Manual date"}
             </dd>
             <dt>Coverage</dt>
-            <dd><span className="unknown-word">Unknown</span></dd>
+            <dd>
+              {ticker.result
+                ? coverageShort(ticker.result)
+                : coveragePending(ticker.failed ?? (ticker.loading ? "retrieving public feeds." : "Unknown."))}
+            </dd>
             <dt>Next {symbol} event</dt>
             <dd>
               {symbolEvent.state === "unknown" ? (
@@ -249,6 +260,10 @@ export function Desk() {
           demo={state.demo}
           now={now}
           fed={fed.result}
+          ticker={ticker.result}
+          tickerFailed={ticker.failed}
+          tickerLoading={ticker.loading}
+          x={x}
           onCommit={commitNews}
           onAttach={(item) =>
             workspace.apply(
@@ -257,6 +272,36 @@ export function Desk() {
             )
           }
           onAttachPress={attachPress}
+          onAttachHeadline={(item) => {
+            if (!ticker.result) return;
+            workspace.apply(
+              attachHeadlineEvidence(state, {
+                symbol,
+                sessionDate,
+                item,
+                querySymbol: ticker.result.yahoo.querySymbol,
+                evidenceId: crypto.randomUUID(),
+                at: new Date().toISOString(),
+                retrievedAt: ticker.result.retrievedAt,
+              }),
+              "Aggregator headline attached. Review and observation were not changed. This is not a permission to trade.",
+            );
+          }}
+          onAttachFiling={(filing) => {
+            if (!ticker.result) return;
+            workspace.apply(
+              attachFilingEvidence(state, {
+                symbol,
+                sessionDate,
+                filing,
+                sec: ticker.result.sec,
+                evidenceId: crypto.randomUUID(),
+                at: new Date().toISOString(),
+                retrievedAt: ticker.result.retrievedAt,
+              }),
+              "SEC filing attached. Review and observation were not changed. This is not a permission to trade.",
+            );
+          }}
         />
         <OptionsPanel
           symbol={symbol}
