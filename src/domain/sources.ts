@@ -1,4 +1,5 @@
 import type { Instrument } from "@/domain/watchlist";
+import { INTRADAY_FEED } from "@/domain/participation";
 import { X_GAP } from "@/domain/x-snapshot";
 
 export type AdapterMode = "live" | "manual" | "demo" | "unconfigured";
@@ -114,7 +115,7 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
     summary:
       "Read-only submissions JSON from data.sec.gov for CIKs whose ticker field was checked. Recent filing rows, acceptance time, and the filing index link. Not a news article and not an analyst target.",
     unresolved:
-      "IWM has no confirmed ticker-field CIK here. QQQ is a name match because the tickers array was empty. SPX is an index and has no issuer filing. www.sec.gov/files/company_tickers.json returned HTTP 403 in this environment, so the map was checked issuer by issuer.",
+      "IWM has no confirmed ticker-field CIK here. QQQ is a name match because the tickers array was empty. SPX is an index and has no issuer filing. SPCX is CIK 0001181412, ticker field SPCX, checked 2026-11-09. www.sec.gov/files/company_tickers.json returned HTTP 403 in this environment, so the map was checked issuer by issuer.",
     links: (instrument) => [
       {
         label: "EDGAR search",
@@ -267,6 +268,15 @@ export const SOURCE_ADAPTERS: readonly SourceAdapter[] = [
     summary: "Orders stay on the phone. This desk has no order path.",
     unresolved:
       "A Schwab developer catalog exists. The exact endpoint and entitlement for this desk were not verified, and none is used.",
+    links: () => [],
+  },
+  {
+    id: "intraday",
+    label: "Intraday bars",
+    mode: "manual",
+    summary:
+      "Time-of-day relative volume and SPY/QQQ alignment use bars you type or import. No live 15-minute feed is connected. This is not an entry signal.",
+    unresolved: INTRADAY_FEED.reason,
     links: () => [],
   },
   {

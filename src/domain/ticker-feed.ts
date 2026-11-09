@@ -54,6 +54,7 @@ export const SEC_LOOKUP: Record<string, { cik: string; match: "ticker" | "name" 
   SPY: { cik: "0000884394", match: "ticker" },
   DIA: { cik: "0001041130", match: "ticker" },
   QQQ: { cik: "0001067839", match: "name" },
+  SPCX: { cik: "0001181412", match: "ticker" },
 };
 
 const ALIASES: Record<string, readonly string[]> = {
@@ -65,6 +66,7 @@ const ALIASES: Record<string, readonly string[]> = {
   IWM: ["IWM", "Russell 2000"],
   DIA: ["DIA", "SPDR Dow"],
   SPX: ["SPX", "S&P 500", "GSPC"],
+  SPCX: ["SPCX", "SpaceX", "Space Exploration Technologies"],
 };
 
 const MACRO_CUES: readonly { label: string; pattern: RegExp }[] = [
@@ -96,6 +98,18 @@ export function watchlistMentions(text: string, symbols: readonly string[]): str
 
 export function macroCue(text: string): string | null {
   return MACRO_CUES.find((cue) => cue.pattern.test(text))?.label ?? null;
+}
+
+export function crossListingNote(symbol: string, text: string): string | null {
+  const namesTesla = namesSymbol("TSLA", text);
+  const namesSpace = namesSymbol("SPCX", text);
+  if (symbol === "SPCX" && namesTesla) {
+    return "This text also names Tesla (TSLA). TSLA is a different company and not this listing.";
+  }
+  if (symbol === "TSLA" && namesSpace) {
+    return "This text also names SpaceX (SPCX). SPCX is a different listing and not a TSLA proxy.";
+  }
+  return null;
 }
 
 export function coverageShort(load: TickerLoad): string {

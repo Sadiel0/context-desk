@@ -7,6 +7,7 @@ import {
   coveragePending,
   coverageShort,
   coverageSummary,
+  crossListingNote,
   macroCue,
   namesSymbol,
   watchlistMentions,
@@ -54,6 +55,11 @@ describe("ticker feeds", () => {
     expect(namesSymbol("SPY", "The S&P 500 rose")).toBe(false);
     expect(namesSymbol("SPX", "The S&P 500 rose")).toBe(true);
     expect(namesSymbol("DIA", "Dow Jones Futures")).toBe(false);
+    expect(namesSymbol("SPX", "SPCX listed")).toBe(false);
+    expect(namesSymbol("SPCX", "SpaceX filed a 10-Q")).toBe(true);
+    expect(namesSymbol("TSLA", "SpaceX filed a 10-Q")).toBe(false);
+    expect(crossListingNote("TSLA", "Tesla and SpaceX")).toMatch(/not a TSLA proxy/);
+    expect(crossListingNote("SPCX", "Tesla delivery")).toMatch(/not this listing/);
   });
 
   it("withholds SEC rows when the ticker field does not match and builds a real index link", () => {

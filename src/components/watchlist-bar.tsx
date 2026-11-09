@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { KIND_LABEL, WATCHLIST, type InstrumentKind } from "@/domain/watchlist";
+import { useEffect, useState } from "react";
+import { KIND_LABEL, WATCHLIST, stepSymbol, type InstrumentKind } from "@/domain/watchlist";
 
 const FILTERS: { id: "all" | InstrumentKind; label: string }[] = [
   { id: "all", label: "All" },
@@ -13,6 +13,26 @@ const FILTERS: { id: "all" | InstrumentKind; label: string }[] = [
 export function WatchlistBar({ selected, onSelect }: { selected: string; onSelect: (symbol: string) => void }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const visible = WATCHLIST.filter((instrument) => filter === "all" || instrument.kind === filter || instrument.symbol === selected);
+  const visibleKey = visible.map((instrument) => instrument.symbol).join("|");
+  useEffect(() => {
+    const symbols = visibleKey.split("|").filter(Boolean);
+    const order = WATCHLIST.map((instrument) => instrument.symbol);
+    function onKey(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+      if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        onSelect(stepSymbol(selected, event.key === "ArrowRight" ? 1 : -1, symbols));
+      } else if (/^[1-9]$/.test(event.key)) {
+        const next = order[Number(event.key) - 1];
+        if (next) onSelect(next);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onSelect, selected, visibleKey]);
 
   return (
     <div className="watch-row">
@@ -29,7 +49,7 @@ export function WatchlistBar({ selected, onSelect }: { selected: string; onSelec
           </button>
         ))}
       </div>
-      <div className="chips" role="radiogroup" aria-label="Watchlist. Arrow keys move between symbols.">
+      <div className="chips" role="radiogroup" aria-label="Watchlist. Arrow keys move the visible symbols. Keys 1 through 9 jump the full list.">
         {visible.map((instrument) => {
           const on = instrument.symbol === selected;
           return (

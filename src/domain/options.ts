@@ -125,6 +125,9 @@ export function contractDistinctions(root: string, symbol: string): string[] {
   }
   if (normalizedRoot === "SPX") notes.push("The root you typed is SPX, not SPXW.");
   if (normalizedRoot === "SPXW") notes.push("The root you typed is SPXW, not SPX.");
+  if (normalizedSymbol === "SPCX" || normalizedRoot === "SPCX") {
+    notes.push("SPCX is Space Exploration Technologies Corp. Class A common stock. It is not the SPX index, not SPXW, and not TSLA.");
+  }
   return notes;
 }
 

@@ -12,7 +12,10 @@ import {
   removeEarnings,
   resetSession,
   reviseNews,
+  importParticipationBars,
+  removeParticipationBar,
   saveNews,
+  saveParticipationBar,
   selectSymbol,
   setDemo,
   setFundamentals,
@@ -20,6 +23,7 @@ import {
   setOptionCapture,
   setReview,
   setSessionOverride,
+  setSetupDirection,
   setSetupNote,
   setSpreadFormula,
 } from "@/domain/actions";
@@ -29,7 +33,6 @@ import { nextFomcDate, nextSymbolEvent } from "@/domain/coverage";
 import { coveragePending, coverageShort } from "@/domain/ticker-feed";
 import { DEMO_BANNER, itemsForView } from "@/domain/demo";
 import type { FedPressItem, FomcMeeting } from "@/domain/fed-parse";
-import { retrievalPhrase } from "@/domain/freshness";
 import { ADVISORY_LIMITS, BOLLINGER_ADAPTATION, TC2000_BOUNDARY } from "@/domain/limits";
 import type { NewsDraft } from "@/domain/news";
 import { checklistFor, fundamentalsFor, optionFor } from "@/domain/state";
@@ -40,6 +43,7 @@ import { ChecklistRail } from "@/components/checklist-rail";
 import { ContextFeed } from "@/components/context-feed";
 import { FundamentalsPanel } from "@/components/fundamentals-panel";
 import { OptionsPanel } from "@/components/options-panel";
+import { ParticipationPanel } from "@/components/participation-panel";
 import { SourcesPanel } from "@/components/sources-panel";
 import { useFed } from "@/components/use-fed";
 import { useTicker } from "@/components/use-ticker";
@@ -144,9 +148,9 @@ export function Desk() {
 
   return (
     <>
+      <a className="skip" href="#feed">Skip to headlines</a>
+      <a className="skip" href="#participation">Skip to tape</a>
       <a className="skip" href="#checklist">Skip to checklist</a>
-      <a className="skip" href="#feed">Skip to catalysts</a>
-      <a className="skip" href="#contract">Skip to contract</a>
       <Mast
         sessionDate={sessionDate}
         nowLabel={clock.nowLabel}
@@ -155,8 +159,28 @@ export function Desk() {
           else if (isSessionDate(value)) workspace.apply(setSessionOverride(state, value));
           else workspace.setNotice("That session date is not a real calendar date.");
         }}
-        onReset={() => workspace.apply(resetSession(state, symbol, sessionDate), "Session reset. News and fundamentals stayed.")}
+        onReset={() =>
+          workspace.apply(
+            resetSession(state, symbol, sessionDate),
+            "Session reset. News, fundamentals, and typed bars stayed. Setup direction for this session was cleared.",
+          )
+        }
         help={<HelpCopy />}
+        contract={
+          <OptionsPanel
+            symbol={symbol}
+            capture={capture}
+            formula={state.spreadFormula}
+            onCapture={(next) => workspace.apply(setOptionCapture(state, symbol, sessionDate, next, new Date().toISOString()))}
+            onFormula={(formula) => workspace.apply(setSpreadFormula(state, formula), "Spread formula saved.")}
+            onAttach={() =>
+              workspace.apply(
+                attachCaptureEvidence(state, { symbol, sessionDate, evidenceId: crypto.randomUUID(), at: new Date().toISOString() }),
+                "Contract snapshot attached. Review and observation were not changed.",
+              )
+            }
+          />
+        }
         sources={
           <>
             <SourcesPanel instrument={instrument} demo={state.demo} onDemo={(demo) => workspace.apply(setDemo(state, demo))} />
@@ -196,55 +220,42 @@ export function Desk() {
         <WatchlistBar selected={symbol} onSelect={(next) => workspace.apply(selectSymbol(state, next))} />
         <div className="symbol-strip">
           <div>
-            <p className="eyebrow">{instrument.kind}</p>
-            <h2>{symbol}</h2>
-            <p className="meta">{instrument.name}</p>
+            <h2 className="mono">{symbol}</h2>
+            <p className="meta">{instrument.name} · {instrument.kind}{instrument.occasional ? " · occasional" : ""}</p>
           </div>
-          <dl className="facts">
-            <dt>Session</dt>
-            <dd>
-              {clock.sessionLabel}
-              {clock.weekend ? " · Weekend" : ""}
-              {clock.matchesEasternToday ? " · Today in Eastern time" : " · Manual date"}
-            </dd>
-            <dt>Coverage</dt>
-            <dd>
-              {ticker.result
-                ? coverageShort(ticker.result)
-                : coveragePending(ticker.failed ?? (ticker.loading ? "retrieving public feeds." : "Unknown."))}
-            </dd>
-            <dt>Next {symbol} event</dt>
-            <dd>
-              {symbolEvent.state === "unknown" ? (
-                <span className="unknown-word">Unknown</span>
-              ) : (
-                <>
-                  {symbolEvent.date} · {symbolEvent.timingLabel}
-                  {symbolEvent.clockKnown ? ` · clock note: ${symbolEvent.clockNote}` : " · clock Unknown"}
-                </>
-              )}
-            </dd>
-            <dt>Next FOMC date</dt>
-            <dd>
-              {fomc.state === "unknown" ? (
-                <><span className="unknown-word">Unknown</span> <span className="meta">{fomc.reason}</span></>
-              ) : (
-                <>
-                  {fomc.label}
-                  {fomc.meeting.sep ? " · SEP" : ""}
-                  {" · date only · statement clock "}
-                  <span className="unknown-word">Unknown</span>
-                  {fed.result ? ` · ${retrievalPhrase(fed.result.retrievedAt, now)}` : ""}
-                  {fed.result?.calendar.lastUpdate ? ` · page text ${fed.result.calendar.lastUpdate}` : ""}
-                  {" · not a "}{symbol}{" stream"}
-                </>
-              )}
-            </dd>
-          </dl>
+          <p className="meta symbol-facts">
+            {clock.sessionLabel}
+            {clock.weekend ? " · Weekend" : ""}
+            {clock.matchesEasternToday ? " · today ET" : " · manual date"}
+            {" · "}
+            {ticker.result
+              ? coverageShort(ticker.result)
+              : coveragePending(ticker.failed ?? (ticker.loading ? "retrieving public feeds." : "Unknown."))}
+            {" · "}
+            {symbolEvent.state === "unknown" ? "Next event Unknown" : `Next event ${symbolEvent.date}`}
+            {" · "}
+            {fomc.state === "unknown" ? "FOMC Unknown" : `FOMC ${fomc.label}`}
+            {" · macro, not this tape"}
+          </p>
+          {instrument.identity ? (
+            <details>
+              <summary>Listing</summary>
+              <p className="meta">{instrument.identity}</p>
+            </details>
+          ) : null}
         </div>
         <p className="notice" role="status">{workspace.notice ?? ""}</p>
       </div>
       <div className="desk">
+        <ParticipationPanel
+          symbol={symbol}
+          sessionDate={sessionDate}
+          book={state.participation}
+          onDirection={(direction) => workspace.apply(setSetupDirection(state, symbol, sessionDate, direction))}
+          onSave={(draft) => workspace.apply(saveParticipationBar(state, draft), "Bar saved. It is not an entry.")}
+          onRemove={(id) => workspace.apply(removeParticipationBar(state, id), "Bar removed.")}
+          onImport={(raw) => workspace.apply(importParticipationBars(state, raw), "Bars imported. Invalid rows were skipped when named in the notice.")}
+        />
         <ChecklistRail
           checklist={checklist}
           now={now}
@@ -303,19 +314,6 @@ export function Desk() {
             );
           }}
         />
-        <OptionsPanel
-          symbol={symbol}
-          capture={capture}
-          formula={state.spreadFormula}
-          onCapture={(next) => workspace.apply(setOptionCapture(state, symbol, sessionDate, next, new Date().toISOString()))}
-          onFormula={(formula) => workspace.apply(setSpreadFormula(state, formula), "Spread formula saved.")}
-          onAttach={() =>
-            workspace.apply(
-              attachCaptureEvidence(state, { symbol, sessionDate, evidenceId: crypto.randomUUID(), at: new Date().toISOString() }),
-              "Contract snapshot attached. Review and observation were not changed.",
-            )
-          }
-        />
       </div>
     </>
   );
@@ -328,6 +326,7 @@ function Mast({
   onReset,
   help,
   sources,
+  contract,
 }: {
   sessionDate: string;
   nowLabel: string;
@@ -335,6 +334,7 @@ function Mast({
   onReset: (() => void) | null;
   help?: ReactNode;
   sources?: ReactNode;
+  contract?: ReactNode;
 }) {
   return (
     <header className="mast">
@@ -355,6 +355,7 @@ function Mast({
               {onReset ? <ResetControl sessionDate={sessionDate} onReset={onReset} /> : null}
               {help ? <Drawer label="Help" title="How the marks work">{help}</Drawer> : null}
               {sources ? <Drawer label="Sources" title="Sources, calendar, and company notes" wide>{sources}</Drawer> : null}
+              {contract ? <Drawer label="Contract" title="Exact contract, after the look" wide>{contract}</Drawer> : null}
             </div>
           ) : null}
         </div>
@@ -403,7 +404,13 @@ function HelpCopy() {
         ))}
       </ul>
       <p>A successful fetch is not a fresh item. Publication age and the last retrieval are separate. A date-only Fed row is not a statement clock time. Missing ticker coverage stays Unknown.</p>
-      <p>Orders stay on the Thinkorswim phone.</p>
+      <p>
+        Arrow keys move the watchlist when you are not typing in a field. Keys 1 through 9 jump the full list in order. The contract calculator stays in Contract and is not required before the headlines or the tape.
+      </p>
+      <p>
+        Block compares SPY, QQQ, and NVDA with the symbol you selected, on one completed 15-minute window and from the 09:30 open. Same, opposite, and mixed are signs only. That comparison was requested. The Academy notes do not define which names share a block or who leads. Index weights, correlation, breadth, and lead/lag are not calculated. NVDA is a comparison symbol, not a watchlist name. Bars are manual.
+      </p>
+      <p>Orders stay on the Thinkorswim phone. Nothing here is an entry.</p>
     </>
   );
 }

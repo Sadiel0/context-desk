@@ -264,11 +264,14 @@ select.control option {
 }
 
 .symbol-strip {
-  display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr);
-  gap: 0.35rem 1rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   padding-top: 0.35rem;
+}
+
+.symbol-strip details {
+  max-width: 48rem;
 }
 
 .symbol-strip h2 {
@@ -295,7 +298,7 @@ select.control option {
 
 .desk {
   display: grid;
-  grid-template-columns: minmax(22rem, 1.15fr) minmax(16rem, 0.9fr) minmax(18rem, 0.95fr);
+  grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.35fr);
   gap: 0.7rem;
   align-items: start;
   padding-top: 0.45rem;
@@ -305,6 +308,112 @@ select.control option {
   background: var(--color-raised);
   border: 1px solid var(--color-rule);
   padding: 0.65rem 0.75rem;
+}
+
+.tape {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 0.45rem 0.7rem 0.55rem;
+}
+
+.wire {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.tape h2,
+.wire h2 {
+  font-size: 1.05rem;
+}
+
+#checklist {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.tape-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.rvol-figure {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.25rem 0 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.ledger th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+  padding: 0.12rem 0.6rem 0.12rem 0;
+}
+
+.ledger td {
+  text-align: right;
+}
+
+.status-off {
+  color: var(--color-ink-soft);
+}
+
+.status-manual {
+  color: var(--color-amber);
+}
+
+.block-members {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0.15rem 0 0.4rem;
+  padding: 0;
+}
+
+.block-members li {
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--color-rule);
+  padding-top: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.block-on {
+  border-top-color: var(--color-signal);
+}
+
+.wire-list {
+  list-style: none;
+  margin: 0.2rem 0 0.4rem;
+  padding: 0;
+}
+
+.wire-list li {
+  border-left: 2px solid var(--color-signal);
+  border-bottom: 1px solid var(--color-rule);
+  padding: 0.35rem 0 0.4rem 0.55rem;
+}
+
+.wire-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.symbol-facts {
+  margin: 0.2rem 0 0;
 }
 
 .panel + .panel, .stack {
@@ -389,6 +498,14 @@ select.control option {
 .mark-line,
 .status-list {
   flex-wrap: nowrap;
+}
+
+fieldset.mark-line {
+  display: flex;
+  gap: 0.7rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .text-button {
@@ -591,6 +708,13 @@ dl.math dd {
     grid-template-columns: 1fr;
   }
 
+  .tape,
+  .wire,
+  #checklist {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
   .symbol-strip,
   .facts {
     grid-template-columns: 1fr;
@@ -598,6 +722,10 @@ dl.math dd {
 
   .chips {
     flex-wrap: nowrap;
+  }
+
+  .block-members {
+    grid-template-columns: 1fr 1fr;
   }
 }
 

@@ -28,7 +28,10 @@ This dev server’s loopback address is reachable on the machine that runs it. I
 
 ## What the screen does
 
-- Watchlist: TSLA, META, AAPL, SPY, QQQ, IWM, DIA, and occasional SPX. SPX is the index, not the SPY ETF. Filters narrow the chips without dropping the selected symbol.
+- Watchlist: TSLA, SPCX (SpaceX), META, AAPL, SPY, QQQ, IWM, DIA, and occasional SPX. SPX is the index, not the SPY ETF. SPCX is Space Exploration Technologies Corp. Class A common stock, verified from SEC CIK 0001181412 on 2026-11-09, and it is not TSLA. Filters narrow the chips without dropping the selected symbol.
+- Participation is manual. Time-of-day relative volume is this 15-minute regular-session bar divided by the mean of earlier regular-session bars in the same Eastern clock window. The current session is excluded. SPX volume is not applicable. SPY and QQQ alignment is with, against, mixed, unchanged, or incomplete only after you set call/up or put/down. No live intraday feed is connected.
+- Block is a requested comparison, not an Academy rule. SPY, QQQ, and NVDA are shown beside the selected symbol on the same completed 15-minute window and from the 09:30 open, as percents. Same, opposite, and mixed are signs. NVDA can be typed or imported as a comparison bar and is not a watchlist chip. No leader, correlation, breadth, or index-weight math.
+- The first look is the selected symbol’s headlines and the tape. The six checklist rows stay underneath. The exact contract is in Contract and is not required before that look. Arrow keys move the visible watchlist. Keys 1–9 jump the full list.
 - Checklist and option capture are keyed by symbol plus the Eastern calendar date. Reset clears that pair, including the optional TC2000 setup note. The news library, fundamentals, and earnings notes stay. A new date does not inherit technical marks.
 - Each of the six rows has a review mark and a separate observation. Reviewed means the look is finished. Observed means the condition was seen. Finishing an earnings review does not mark a trade safe, and the counts are not a score. The Spanish name and the English name are both on the row. Gap can be not applicable. An optional setup note (lateral or squeeze, widening, band exit, candle, nearby line or average, extension, TC2000 time, setup version) sits under the six rows and starts blank on every session.
 - Bollinger, moving averages, and trendline evidence can only be “you, in TC2000.” A headline cannot check them.
@@ -40,7 +43,7 @@ This dev server’s loopback address is reachable on the machine that runs it. I
 
 ## Design
 
-Wireframe: a short ink mast, a watchlist, then checklist | feed | context rail.
+Wireframe: a short ink mast, a symbol strip, then tape | headlines, with the six checklist rows underneath. Contract is a drawer.
 
 Critique that the build follows:
 
@@ -50,14 +53,14 @@ Critique that the build follows:
 - Dark mode is the only theme. Six named colors: ink `#f4efe6`, paper `#141210`, rule `#3d3832`, signal `#9fd0da`, amber `#e6c27a`, clay `#e7b2ab`. Washes are darker tints of those, not extra hues. Native inputs, selects, and date fields use `color-scheme: dark`.
 - Type: Newsreader for the symbol and titles, Source Sans 3 for the interface, IBM Plex Mono for figures and timestamps.
 - DEMO is a full-width clay banner, not a toast.
-- Narrow widths stack in the order symbol, checklist, feed, then calendar, contract, and fundamentals.
+- Narrow widths stack symbol, tape, headlines, then the checklist. Calendar and fundamentals stay in Sources. The contract stays in its drawer.
 - Focus rings stay visible. Motion is not used. `prefers-reduced-motion` disables animation if any is introduced later.
 
 ## Data contracts
 
 Session date is the `America/New_York` calendar date. A daylight-saving gap or overlap in a typed clock time is rejected instead of guessed. Displayed instants include EST or EDT.
 
-The first laptop view is the symbol, a short coverage line, the next recorded symbol event or Unknown, the next FOMC date with its retrieval time, the six checklist rows, Yahoo headlines that name the symbol, and the contract capture. Yahoo items that do not name the symbol, older headlines, SEC filings, the X sweeper, and macro titles start collapsed. Source launchers, the full calendar, and company fields are in Sources. Longer explanations are in Help.
+The first laptop view is the symbol, a short coverage line, Yahoo headlines that name the symbol, and the tape: relative volume, setup alignment, the block comparison, and the four volume rows. The six checklist rows sit under that. Yahoo items that do not name the symbol, older headlines, SEC filings, the X sweeper, macro titles, and saved notes start collapsed. The contract calculator is in Contract. Source launchers, the full calendar, and company fields are in Sources. Longer explanations, including why block is not an Academy confirmation, are in Help.
 
 Yahoo and SEC requests are allowlisted, refuse redirects, time out at 8 seconds, and cap the body at 2 MB. A successful process caches a symbol for 90 seconds (20 seconds if a source errored). Publication age and retrieval time stay separate. Yahoo may itself cache the RSS for about five minutes; that is the origin’s header, not a freshness claim.
 
@@ -96,6 +99,9 @@ Workspace JSON is version `1`. Unreadable JSON or another version is left untouc
 | Demo fixtures | Demo, off by default | Invented examples. Not market data. |
 | TC2000 | Manual, outside this app | Not embedded, scraped, or replaced. |
 | Thinkorswim / Schwab | Not connected | No order API. Phone execution only. |
+| Intraday 15-minute bars | Manual | No documented keyless consolidated bar feed. Nasdaq bars need a bearer token. Relative volume, SPY/QQQ setup alignment, and the SPY/QQQ/NVDA block use bars you type or import. A typed bar is not a live quote. Time and sales, bid/ask side, and book depth are unavailable. An up bar is not a buy. |
+| Block comparison | Manual | SPY, QQQ, NVDA, plus the selected symbol when it is not already one of those three. Completed 15-minute percent and session-open percent. Same, opposite, mixed, unchanged, or incomplete. Not a leader and not Academy confirmation. |
+| SpaceX / SPCX | Listed stock, public reads where the other adapters already apply | SEC submissions CIK 0001181412 returned ticker SPCX on Nasdaq on 2026-11-09. Form 10-Q filed 2026-10-22 (`0001628280-26-066880`) registers Class A common stock, symbol SPCX, on Nasdaq and Nasdaq Texas. Yahoo symbol RSS answered for SPCX as an aggregator. Nasdaq Trader News DTN2026-8 says this listing was set for June 12, 2026 and that SPCX previously named a different security. Not TSLA. No synthetic price, option, or RVOL. |
 
 Launchers that this environment actually received HTTP 200 for: Federal Reserve calendar, monetary-policy feed, and feed directory; Finviz AAPL (redirected to `/stock`); Yahoo AAPL and `^GSPC`; CNBC AAPL and `.SPX`; OptionSlam AAPL. MarketWatch, Bloomberg, and WSJ refused the automated request (401 or 403). Those links are still offered and marked unverified. Other symbols use the same path pattern and were not each checked.
 
@@ -113,7 +119,7 @@ The Federal Reserve pages used are public: [feeds](https://www.federalreserve.go
 
 ## Tests
 
-Unit tests cover Eastern dates across the March 2026 spring-forward and November 2026 fall-back, checklist isolation and reset, evidence kind rules, option spread versus debit versus exposure versus stop versus plan, missing multiplier not becoming zero, SPX versus SPXW wording, URL rejection, dedupe and corrections, freshness without inventing it from ingest time, demo hiding, the Fed HTML and RSS parsers, redirect / foreign-host / oversize / timeout handling, corrupt local storage left untouched, Yahoo mention versus feed association, SEC ticker-field withholding, headline and filing attach without changing review or observation, and X snapshot rejection when a payload claims to be live or uses a non-X URL. Live Yahoo and SEC responses are not required for the unit tests. A separate manual probe in this environment called those hosts.
+Unit tests cover Eastern dates across the March 2026 spring-forward and November 2026 fall-back, checklist isolation and reset, evidence kind rules, option spread versus debit versus exposure versus stop versus plan, missing multiplier not becoming zero, SPX versus SPXW wording, URL rejection, dedupe and corrections, freshness without inventing it from ingest time, demo hiding, the Fed HTML and RSS parsers, redirect / foreign-host / oversize / timeout handling, corrupt local storage left untouched, Yahoo mention versus feed association, SEC ticker-field withholding, headline and filing attach without changing review or observation, X snapshot rejection when a payload claims to be live or uses a non-X URL, same-clock relative volume, partial and mismatched bars, SPX volume refusal, and the SPY/QQQ/NVDA block signs. NVDA is accepted as a comparison bar and rejected as a watchlist symbol. Live Yahoo and SEC responses are not required for the unit tests. A separate manual probe in this environment called those hosts.
 
 `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build` are the checks. Browser smoke is desktop and a narrow width against the dev server.
 

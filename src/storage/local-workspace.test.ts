@@ -127,6 +127,8 @@ describe("local workspace", () => {
     expect(migrated.state.checklists["TSLA|2026-11-08"].observations.fed_earnings).toBe("unknown");
     expect(migrated.state.checklists["TSLA|2026-11-08"].observations.bollinger).toBe("observed");
     expect(migrated.state.checklists["TSLA|2026-11-09"]).toBeUndefined();
+    expect(migrated.state.participation.bars).toEqual([]);
+    expect(migrated.state.participation.directions).toEqual({});
   });
 
   it("starts from an empty workspace with demo off", () => {

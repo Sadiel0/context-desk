@@ -2,7 +2,7 @@
 
 import { agePhrase, classifyFreshness, retrievalPhrase, titleBadge } from "@/domain/freshness";
 import type { SecFiling } from "@/domain/sec-parse";
-import { macroCue, watchlistMentions, type AggregatorHeadline, type TickerLoad } from "@/domain/ticker-feed";
+import { crossListingNote, macroCue, watchlistMentions, type AggregatorHeadline, type TickerLoad } from "@/domain/ticker-feed";
 import { WATCHLIST } from "@/domain/watchlist";
 import { X_ALLOWLIST_PENDING } from "@/domain/sources";
 import type { XDeskStatus, XPost } from "@/domain/x-snapshot";
@@ -36,6 +36,7 @@ export function SourcedContext({
 
   return (
     <>
+      <p className="meta">Yahoo Finance symbol RSS. Aggregator, not the publisher, and not a quote.</p>
       {ticker.yahoo.state === "error" ? (
         <p className="errors">
           Yahoo headlines: <span className="unknown-word">Unknown</span>. {ticker.yahoo.error}
@@ -45,9 +46,9 @@ export function SourcedContext({
           No recent Yahoo headline names {symbol}. {namedHistory.length} older naming headline(s) are in history. {associated.length} feed item(s) do not name {symbol}.
         </p>
       ) : (
-        <ul className="compact-list">
+        <ul className="wire-list">
           {namedRecent.map((item) => (
-            <HeadlineRow key={item.id} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
+            <HeadlineRow key={item.id} symbol={symbol} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
           ))}
         </ul>
       )}
@@ -56,7 +57,7 @@ export function SourcedContext({
           <summary>More Yahoo headlines that name {symbol} · {namedMore.length}</summary>
           <ul className="compact-list">
             {namedMore.map((item) => (
-              <HeadlineRow key={item.id} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
+              <HeadlineRow key={item.id} symbol={symbol} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
             ))}
           </ul>
         </details>
@@ -66,7 +67,7 @@ export function SourcedContext({
         <p className="meta">{ticker.yahoo.notice} These rows came back on the symbol feed. That is Yahoo’s association, not a direct mention and not publisher coverage.</p>
         <ul className="compact-list">
           {associated.map((item) => (
-            <HeadlineRow key={item.id} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={null} />
+            <HeadlineRow key={item.id} symbol={symbol} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={null} />
           ))}
         </ul>
       </details>
@@ -74,7 +75,7 @@ export function SourcedContext({
         <summary>Older Yahoo headlines that name {symbol} · {namedHistory.length}</summary>
         <ul className="compact-list">
           {namedHistory.map((item) => (
-            <HeadlineRow key={item.id} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
+            <HeadlineRow key={item.id} symbol={symbol} item={item} now={now} retrievedAt={ticker.retrievedAt} onAttach={onAttachHeadline} />
           ))}
         </ul>
       </details>
@@ -121,11 +122,13 @@ export function SourcedContext({
 }
 
 function HeadlineRow({
+  symbol,
   item,
   now,
   retrievedAt,
   onAttach,
 }: {
+  symbol: string;
   item: AggregatorHeadline;
   now: Date;
   retrievedAt: string;
@@ -134,14 +137,14 @@ function HeadlineRow({
   const reading = classifyFreshness(item.publishedAt, null, now);
   return (
     <li>
-      <span className="badge">{titleBadge(reading.freshness)}</span>{" "}
-      <span className="badge">{item.mention === "names_symbol" ? "Names symbol" : "Feed association"}</span>{" "}
-      <span className="meta">{agePhrase(item.publishedAt, now)}</span>
-      <span className="meta"> · {retrievalPhrase(retrievedAt, now)}</span>
-      <p>{item.title}</p>
+      <p className="wire-title">{item.title}</p>
       <p className="meta">
-        Yahoo Finance aggregator. Link host {item.linkHost}. Not the publisher. Not a desk quote.
+        <span className="badge">{titleBadge(reading.freshness)}</span>{" "}
+        {item.mention === "names_symbol" ? "Names symbol" : "Feed association"} · {agePhrase(item.publishedAt, now)} · {retrievalPhrase(retrievedAt, now)} · {item.linkHost}
       </p>
+      {crossListingNote(symbol, `${item.title} ${item.feedSummary ?? ""}`) ? (
+        <p className="meta">{crossListingNote(symbol, `${item.title} ${item.feedSummary ?? ""}`)}</p>
+      ) : null}
       {item.feedSummary ? (
         <details>
           <summary>Yahoo feed summary</summary>

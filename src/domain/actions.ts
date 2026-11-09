@@ -33,6 +33,14 @@ import { easternLocalToIso, isSessionDate, zonedErrorMessage } from "@/domain/ti
 import { normalizeUrl } from "@/domain/urls";
 import { isWatchSymbol } from "@/domain/watchlist";
 import { FED_CALENDAR_URL } from "@/domain/sources";
+import {
+  directionKey,
+  importBars,
+  isSetupDirection,
+  upsertBar,
+  validateBar,
+  type BarDraft,
+} from "@/domain/participation";
 
 export type ActionResult = {
   state: WorkspaceState;
@@ -298,9 +306,54 @@ export function resetSession(state: WorkspaceState, symbol: string, sessionDate:
   const key = sessionKey(symbol, sessionDate);
   const checklists = { ...state.checklists };
   const options = { ...state.options };
+  const directions = { ...state.participation.directions };
   delete checklists[key];
   delete options[key];
-  return ok({ ...state, checklists, options });
+  delete directions[key];
+  return ok({ ...state, checklists, options, participation: { ...state.participation, directions } });
+}
+
+export function setSetupDirection(
+  state: WorkspaceState,
+  symbol: string,
+  sessionDate: string,
+  direction: string,
+): ActionResult {
+  if (!isWatchSymbol(symbol) || !isSessionDate(sessionDate)) return fail(state, "Unknown session.");
+  if (!isSetupDirection(direction)) return fail(state, "Direction must be unset, call/up, or put/down.");
+  return ok({
+    ...state,
+    participation: {
+      ...state.participation,
+      directions: { ...state.participation.directions, [directionKey(symbol, sessionDate)]: direction },
+    },
+  });
+}
+
+export function saveParticipationBar(state: WorkspaceState, draft: BarDraft): ActionResult {
+  const validated = validateBar(draft);
+  if (!validated.ok) return fail(state, validated.error);
+  const bars = upsertBar(state.participation.bars, validated.bar).slice(-500);
+  return ok({ ...state, participation: { ...state.participation, bars } });
+}
+
+export function removeParticipationBar(state: WorkspaceState, id: string): ActionResult {
+  return ok({
+    ...state,
+    participation: { ...state.participation, bars: state.participation.bars.filter((bar) => bar.id !== id) },
+  });
+}
+
+export function importParticipationBars(state: WorkspaceState, raw: unknown): ActionResult {
+  const imported = importBars(raw);
+  if (imported.bars.length === 0) {
+    return fail(state, imported.errors[0] ?? "No bars were imported.");
+  }
+  let bars = state.participation.bars;
+  for (const bar of imported.bars) bars = upsertBar(bars, bar);
+  const next = { ...state, participation: { ...state.participation, bars: bars.slice(-500) } };
+  if (imported.errors.length) return fail(next, imported.errors.join(" "));
+  return ok(next);
 }
 
 export function saveNews(state: WorkspaceState, draft: NewsDraft, mode: "primary" | "duplicate" | "correction"): ActionResult {

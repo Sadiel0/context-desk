@@ -23,7 +23,8 @@ export function OptionsPanel({
   onAttach: () => void;
 }) {
   const math = evaluateOption(capture, formula, symbol);
-  const showDistinctions = symbol === "SPX" || symbol === "SPY" || /SPX/i.test(capture.root);
+  const root = capture.root.trim().toUpperCase();
+  const showDistinctions = symbol === "SPX" || symbol === "SPY" || symbol === "SPCX" || root === "SPX" || root === "SPXW" || root === "SPCX";
   const set = (patch: Partial<OptionCapture>) => onCapture({ ...capture, ...patch });
 
   return (

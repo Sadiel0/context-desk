@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ActionResult } from "@/domain/actions";
 import { partitionDirect } from "@/domain/coverage";
-import { coveragePending, coverageSummary, type AggregatorHeadline, type TickerLoad } from "@/domain/ticker-feed";
+import { coveragePending, coverageShort, coverageSummary, type AggregatorHeadline, type TickerLoad } from "@/domain/ticker-feed";
 import type { SecFiling } from "@/domain/sec-parse";
 import type { XDeskStatus } from "@/domain/x-snapshot";
 import { SourcedContext } from "@/components/sourced-context";
@@ -66,28 +66,30 @@ export function ContextFeed({
   const pressError = fed?.press.error ?? (fed ? null : "The monetary-policy feed has not returned yet.");
 
   return (
-    <section className="panel" id="feed" aria-labelledby="feed-title">
-      <h2 id="feed-title">Catalysts</h2>
+    <section className="panel wire" id="feed" aria-labelledby="feed-title">
+      <h2 id="feed-title">{symbol}</h2>
       <p className="meta">
-        {ticker ? coverageSummary(ticker) : coveragePending(tickerFailed ?? (tickerLoading ? "retrieving public feeds." : "Unknown."))}
+        {ticker ? coverageShort(ticker) : coveragePending(tickerFailed ?? (tickerLoading ? `reading public feeds for ${symbol}.` : "Unknown."))}
       </p>
-      <SourcedContext symbol={symbol} now={now} ticker={ticker} x={x} onAttachHeadline={onAttachHeadline} onAttachFiling={onAttachFiling} />
-      <div className="inline-actions">
-        <Button type="button" size="sm" onClick={() => setForm(form === "create" ? null : "create")}>
-          Record a sourced item
-        </Button>
-      </div>
-      {form === "create" ? <ItemForm mode="create" onCommit={onCommit} onClose={() => setForm(null)} /> : null}
-      {recent.length === 0 ? (
-        <p>
-          <span className="unknown-word">Unknown</span>
-          <span className="meta"> — no recent direct item is on file for {symbol}.</span>
-        </p>
+      {ticker ? (
+        <SourcedContext key={symbol} symbol={symbol} now={now} ticker={ticker} x={x} onAttachHeadline={onAttachHeadline} onAttachFiling={onAttachFiling} />
       ) : (
-        recent.map((item) => (
-          <FeedCard key={item.id} item={item} all={items} now={now} form={form} editing={editing} onForm={setForm} onCommit={onCommit} onAttach={onAttach} />
-        ))
+        <p className="meta">{tickerFailed ?? (tickerLoading ? `Headlines for ${symbol} are still loading.` : "Headlines have not been requested.")}</p>
       )}
+      <details>
+        <summary>Coverage note{recent.length ? ` · ${recent.length} saved` : ""}</summary>
+        <p className="meta">{ticker ? coverageSummary(ticker) : "Saved notes are separate from the public feeds."}</p>
+        <div className="inline-actions">
+          <Button type="button" size="sm" onClick={() => setForm(form === "create" ? null : "create")}>
+            Record a sourced item
+          </Button>
+        </div>
+        {form === "create" ? <ItemForm mode="create" onCommit={onCommit} onClose={() => setForm(null)} /> : null}
+        {recent.length === 0 ? <p className="meta">No saved direct item for {symbol}. That is not “no catalysts.”</p> : null}
+        {recent.map((item) => (
+          <FeedCard key={item.id} item={item} all={items} now={now} form={form} editing={editing} onForm={setForm} onCommit={onCommit} onAttach={onAttach} />
+        ))}
+      </details>
       <details>
         <summary>History · {history.length} older direct {history.length === 1 ? "item" : "items"}</summary>
         {history.length === 0 ? <p className="meta">No older direct item is on file. That is not “no catalysts.”</p> : null}

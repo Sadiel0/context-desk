@@ -2,6 +2,7 @@ import { emptyChecklist, type ChecklistSession } from "@/domain/checklist";
 import { emptyFundamentals, type EarningsEvent, type Fundamentals } from "@/domain/fundamentals";
 import type { NewsItem } from "@/domain/news";
 import { emptyOptionCapture, type OptionCapture, type SpreadFormula } from "@/domain/options";
+import { emptyParticipation, type ParticipationBook } from "@/domain/participation";
 import { isSessionDate, sessionDateET } from "@/domain/time";
 import { instrumentFor, isWatchSymbol } from "@/domain/watchlist";
 
@@ -18,6 +19,7 @@ export type WorkspaceState = {
   fundamentals: Record<string, Fundamentals>;
   earnings: EarningsEvent[];
   options: Record<string, OptionCapture>;
+  participation: ParticipationBook;
 };
 
 export function initialWorkspace(): WorkspaceState {
@@ -32,6 +34,7 @@ export function initialWorkspace(): WorkspaceState {
     fundamentals: {},
     earnings: [],
     options: {},
+    participation: emptyParticipation(),
   };
 }
 

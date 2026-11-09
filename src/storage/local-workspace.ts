@@ -22,6 +22,7 @@ import {
 import type { NewsItem, Relevance, Stance, XContext } from "@/domain/news";
 import { listUnknowns } from "@/domain/news";
 import { emptyOptionCapture, type OptionCapture, type OptionRight } from "@/domain/options";
+import { isSetupDirection, validateBar, type BarObservation, type ParticipationBook, type SetupDirection } from "@/domain/participation";
 import { initialWorkspace, isSpreadFormula, type WorkspaceState } from "@/domain/state";
 import { cleanText } from "@/domain/text";
 import { isSessionDate } from "@/domain/time";
@@ -133,7 +134,50 @@ export function parseWorkspace(raw: unknown): WorkspaceState | null {
     fundamentals,
     earnings,
     options,
+    participation: sanitizeParticipation(raw.participation),
   };
+}
+
+function sanitizeParticipation(raw: unknown): ParticipationBook {
+  if (!isRecord(raw)) return { directions: {}, bars: [] };
+  const directions: Record<string, SetupDirection> = {};
+  if (isRecord(raw.directions)) {
+    for (const [key, value] of Object.entries(raw.directions)) {
+      const [symbol, sessionDate] = key.split("|");
+      if (!symbol || !sessionDate || !isWatchSymbol(symbol) || !isSessionDate(sessionDate)) continue;
+      if (typeof value === "string" && isSetupDirection(value)) directions[key] = value;
+    }
+  }
+  const bars: BarObservation[] = [];
+  if (Array.isArray(raw.bars)) {
+    for (const entry of raw.bars) {
+      const bar = sanitizeBar(entry);
+      if (bar) bars.push(bar);
+    }
+  }
+  return { directions, bars: bars.slice(-500) };
+}
+
+function sanitizeBar(raw: unknown): BarObservation | null {
+  if (!isRecord(raw)) return null;
+  const validated = validateBar({
+    id: typeof raw.id === "string" ? raw.id : "",
+    symbol: typeof raw.symbol === "string" ? raw.symbol : "",
+    sessionDate: typeof raw.sessionDate === "string" ? raw.sessionDate : "",
+    windowStart: typeof raw.windowStart === "string" ? raw.windowStart : "",
+    windowEnd: typeof raw.windowEnd === "string" ? raw.windowEnd : "",
+    volume: typeof raw.volume === "number" ? raw.volume : null,
+    open: typeof raw.open === "number" ? raw.open : null,
+    close: typeof raw.close === "number" ? raw.close : null,
+    sessionOpen: typeof raw.sessionOpen === "number" ? raw.sessionOpen : null,
+    partial: raw.partial === true,
+    closedSession: raw.closedSession === true,
+    sourceLabel: typeof raw.sourceLabel === "string" ? raw.sourceLabel : "",
+    delayNote: typeof raw.delayNote === "string" ? raw.delayNote : "",
+    asOf: typeof raw.asOf === "string" ? raw.asOf : null,
+    observedAt: typeof raw.observedAt === "string" ? raw.observedAt : "",
+  });
+  return validated.ok ? validated.bar : null;
 }
 
 function sanitizeNews(raw: unknown): NewsItem | null {
