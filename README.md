@@ -26,6 +26,10 @@ Data is stored in this browser under `context-desk.workspace.v1`. No account, no
 
 This dev server’s loopback address is reachable on the machine that runs it. It is not a hosted preview. Opening it here does not publish the draft.
 
+## Netlify
+
+`netlify.toml` is the build contract for a later Netlify site. Build command `next build`, publish directory `.next`, Node 22. Netlify’s Next.js runtime turns the App Router and the `/api/ticker`, `/api/fed`, and `/api/x` route handlers into Functions. Those handlers use ordinary `fetch` to public HTTPS hosts. Yahoo and SEC run in parallel, and each request aborts at 8 seconds. No API key is required. The in-memory cache lives only as long as one function instance. A missing `data/x-snapshot.json` leaves the X route disconnected. This file does not deploy the site.
+
 ## What the screen does
 
 - Watchlist: TSLA, SPCX (SpaceX), META, AAPL, SPY, QQQ, IWM, DIA, and occasional SPX. SPX is the index, not the SPY ETF. SPCX is Space Exploration Technologies Corp. Class A common stock, verified from SEC CIK 0001181412 on 2026-11-09, and it is not TSLA. Filters narrow the chips without dropping the selected symbol.

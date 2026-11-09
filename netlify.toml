@@ -1,0 +1,10 @@
+# Next.js on Netlify. The @netlify/next runtime is applied by Netlify when it
+# detects this app. It turns App Router pages and /api/* route handlers into
+# Netlify Functions. Do not put secrets in this file.
+
+[build]
+command = "next build"
+publish = ".next"
+
+[build.environment]
+NODE_VERSION = "22"

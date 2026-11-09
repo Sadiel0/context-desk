@@ -43,5 +43,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# parent-supplied X snapshot; not source and not a live feed
-/data/x-snapshot.json
+# local snapshots and any other machine-only data
+/data/
